@@ -9,8 +9,8 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: "KBD — Keyboard Shortcut Component",
-  description: "A beautiful, accessible keyboard shortcut component for React. Display key combinations with macOS symbols, URL sharing, and keyboard listening.",
+  title: "Shortcut Cheatsheet — Define & Share Keyboard Shortcuts",
+  description: "Define keyboard shortcuts with names and descriptions. Export and share via URL, JSON, or plain text.",
 }
 
 export default function RootLayout({
