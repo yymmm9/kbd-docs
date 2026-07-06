@@ -57,3 +57,28 @@ export function formatKeysForDisplay(keys: KeyItem[]): string {
     .map((k) => k.display)
     .join(" + ")
 }
+
+export function parseComboString(str: string): string[] {
+  return str
+    .split("+")
+    .map((s) => s.trim())
+    .filter(Boolean)
+}
+
+export function serializeCombo(keys: string[]): string {
+  return keys.join("+")
+}
+
+export function parseCombosParam(param: string | null): string[][] {
+  if (!param) return []
+  return param
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map(parseComboString)
+    .filter((c) => c.length > 0)
+}
+
+export function serializeCombos(combos: string[][]): string {
+  return combos.map(serializeCombo).join(",")
+}

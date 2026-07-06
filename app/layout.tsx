@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
+import { NuqsAdapter } from "nuqs/adapters/next/app"
 import "./globals.css"
 
 const inter = Inter({
@@ -9,7 +10,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "KBD — Keyboard Shortcut Component",
-  description: "A beautiful, accessible keyboard shortcut component for React. Display key combinations with macOS symbols and keyboard listening.",
+  description: "A beautiful, accessible keyboard shortcut component for React. Display key combinations with macOS symbols, URL sharing, and keyboard listening.",
 }
 
 export default function RootLayout({
@@ -20,7 +21,9 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className={`${inter.variable} font-sans antialiased`}>
-        {children}
+        <NuqsAdapter>
+          {children}
+        </NuqsAdapter>
       </body>
     </html>
   )

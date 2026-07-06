@@ -1,6 +1,8 @@
+import { Suspense } from "react"
 import { Demo } from "@/kbd/demo"
 import { Demo as DemoSymbols } from "@/kbd/demo-symbols"
 import { Demo as DemoCustom } from "@/kbd/demo-custom"
+import { Playground } from "@/kbd/playground"
 import { DemoCanvas } from "@/docs/demo-canvas"
 import { DemoPreview } from "@/docs/demo-preview"
 import { DemoCode } from "@/docs/demo-code"
@@ -129,6 +131,11 @@ export default function Home() {
             </DemoCode>
           </DemoCanvas>
         </section>
+
+        {/* Playground - URL-driven */}
+        <Suspense fallback={null}>
+          <Playground />
+        </Suspense>
 
         {/* Usage */}
         <section className="mt-16">
