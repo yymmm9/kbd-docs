@@ -5,6 +5,8 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+// ── Key Symbol Map ──────────────────────────────────────────
+
 export const keySymbolMap: Record<string, { display: string; symbol: string }> = {
   command: { display: "⌘", symbol: "⌘" },
   cmd: { display: "⌘", symbol: "⌘" },
@@ -55,30 +57,48 @@ export function normalizeKeys(keys: KeyItem[]): { display: string; listenKey: st
 export function formatKeysForDisplay(keys: KeyItem[]): string {
   return normalizeKeys(keys)
     .map((k) => k.display)
-    .join(" + ")
+    .join(" ")
 }
 
-export function parseComboString(str: string): string[] {
-  return str
-    .split("+")
-    .map((s) => s.trim())
+// ── Shortcut Data Model ─────────────────────────────────────
+
+export interface Shortcut {
+  id: string
+  keys: string[]
+  action: string
+  description: string
+}
+
+let counter = 0
+export function createShortcutId(): string {
+  counter++
+  return `s_${Date.now().toString(36)}_${counter}`
+}
+
+// ── URL Export / Import ─────────────────────────────────────
+
+export function exportShortcutsAsText(shortcuts: Shortcut[]): string {
+  return shortcuts
+    .map((s) => {
+      const combo = s.keys.join("+")
+      return `${combo} | ${s.action} | ${s.description}`
+    })
+    .join("\n")
+}
+
+export function parseImportText(text: string): Omit<Shortcut, "id">[] {
+  return text
+    .split("\n")
+    .map((line) => line.trim())
     .filter(Boolean)
-}
-
-export function serializeCombo(keys: string[]): string {
-  return keys.join("+")
-}
-
-export function parseCombosParam(param: string | null): string[][] {
-  if (!param) return []
-  return param
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .map(parseComboString)
-    .filter((c) => c.length > 0)
-}
-
-export function serializeCombos(combos: string[][]): string {
-  return combos.map(serializeCombo).join(",")
+    .map((line) => {
+      const parts = line.split("|").map((p) => p.trim())
+      const keysPart = parts[0] || ""
+      return {
+        keys: keysPart.split("+").filter(Boolean),
+        action: parts[1] || "",
+        description: parts[2] || "",
+      }
+    })
+    .filter((s) => s.keys.length > 0 && s.action)
 }
