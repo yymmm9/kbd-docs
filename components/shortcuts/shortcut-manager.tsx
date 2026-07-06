@@ -78,21 +78,51 @@ function useComboMatch(normalized: { listenKey: string }[], pressedKeys: Set<str
 
 export function ShortcutManager() {
   const [rawData, setRawData] = useQueryState("s")
-  const shortcuts: Shortcut[] = rawData
-    ? (() => {
-        try {
-          return JSON.parse(rawData)
-        } catch {
-          return []
-        }
-      })()
-    : []
+
+  // Local state for shortcuts — decoupled from URL so editing doesn't pollute it
+  const [shortcuts, setShortcutsState] = useState<Shortcut[]>(() => {
+    try {
+      return rawData ? JSON.parse(rawData) : []
+    } catch {
+      return []
+    }
+  })
+
+  // Share mode: when ON, changes sync to URL
+  const [shareMode, setShareMode] = useState(false)
+  const shareModeRef = useRef(shareMode)
+  useEffect(() => {
+    shareModeRef.current = shareMode
+  }, [shareMode])
+
   const setShortcuts = useCallback(
     (next: Shortcut[]) => {
-      setRawData(next.length > 0 ? JSON.stringify(next) : null)
+      setShortcutsState(next)
+      if (shareModeRef.current) {
+        setRawData(next.length > 0 ? JSON.stringify(next) : null)
+      }
     },
     [setRawData]
   )
+
+  // Sync local state from URL when share mode is ON and URL changes externally
+  useEffect(() => {
+    if (rawData) {
+      try {
+        const parsed = JSON.parse(rawData)
+        if (Array.isArray(parsed)) {
+          setShortcutsState(parsed)
+        }
+      } catch {}
+    }
+  }, [rawData])
+
+  // When shareMode toggles ON, push current shortcuts to URL
+  useEffect(() => {
+    if (shareMode && shortcuts.length > 0) {
+      setRawData(JSON.stringify(shortcuts))
+    }
+  }, [shareMode]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const [keysInput, setKeysInput] = useState("")
   const [actionInput, setActionInput] = useState("")
@@ -101,7 +131,7 @@ export function ShortcutManager() {
   const [copied, setCopied] = useState(false)
   const [importText, setImportText] = useState("")
   const [showImport, setShowImport] = useState(false)
-  const [testMode, setTestMode] = useState(false)
+  const [testMode, setTestMode] = useState(true)
   const [viewMode, setViewMode] = useState<"list" | "grid">("list")
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -313,15 +343,22 @@ export function ShortcutManager() {
       </header>
 
       <main className="mx-auto max-w-4xl px-6 py-12 sm:px-8">
-        {/* ── Test Mode Banner ── */}
-        {testMode && (
-          <div className="mb-8 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
+        {/* ── Test Mode Banner (always in DOM, no layout shift) ── */}
+        <div
+          className="overflow-hidden transition-all duration-300 ease-out will-change-[max-height,opacity,margin]"
+          style={{
+            maxHeight: testMode ? '200px' : '0',
+            opacity: testMode ? 1 : 0,
+            marginBottom: testMode ? '2rem' : '0',
+          }}
+        >
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-5 py-4">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-500/20 text-amber-400 text-xs font-bold">
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-500/20 text-amber-400 text-sm font-bold">
                   !
                 </span>
-                <p className="text-sm text-amber-200/90 font-medium">
+                <p className="text-sm text-amber-200/90 font-medium leading-snug">
                   Test Mode active — all keyboard input is intercepted.
                   Press any shortcut combination to see it light up.
                 </p>
@@ -330,7 +367,7 @@ export function ShortcutManager() {
                 type="button"
                 onClick={() => setTestMode(false)}
                 className={cn(
-                  "inline-flex h-8 items-center justify-center rounded-lg px-3 text-xs font-medium",
+                  "inline-flex shrink-0 h-8 items-center justify-center rounded-lg px-3 text-xs font-medium",
                   "border border-amber-500/30 text-amber-300/80 hover:bg-amber-500/10",
                   "transition-all duration-150"
                 )}
@@ -339,7 +376,7 @@ export function ShortcutManager() {
               </button>
             </div>
           </div>
-        )}
+        </div>
 
         {/* ── Add / Edit Form ── */}
         <section>
@@ -477,6 +514,26 @@ export function ShortcutManager() {
               )}
             </h2>
             <div className="flex items-center gap-2">
+              {/* Share toggle */}
+              <button
+                type="button"
+                onClick={() => setShareMode((v) => !v)}
+                className={cn(
+                  "inline-flex h-8 items-center justify-center rounded-lg px-3 text-xs font-medium gap-1.5",
+                  "border transition-all duration-150 active:scale-[0.97]",
+                  shareMode
+                    ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-400"
+                    : "border-border/60 bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                <span
+                  className={cn(
+                    "inline-block h-2 w-2 rounded-full transition-colors duration-150",
+                    shareMode ? "bg-emerald-400" : "bg-muted-foreground/40"
+                  )}
+                />
+                {shareMode ? "Share ON" : "Share"}
+              </button>
               {/* View toggle */}
               <div className="flex items-center rounded-lg border border-border/60 bg-muted/50 p-0.5 mr-1">
                 <button
@@ -522,17 +579,22 @@ export function ShortcutManager() {
               </button>
               <button
                 type="button"
-                onClick={copyShareUrl}
+                onClick={shareMode ? copyShareUrl : () => setShareMode(true)}
                 className={cn(
                   "inline-flex h-8 items-center justify-center rounded-lg px-3 text-xs font-medium",
-                  "border border-border/60 bg-muted/50 text-muted-foreground",
-                  "hover:bg-muted hover:text-foreground",
-                  "transition-all duration-150",
+                  "border transition-all duration-150 active:scale-[0.97]",
+                  shareMode
+                    ? "border-border/60 bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground"
+                    : "border-dashed border-muted-foreground/25 text-muted-foreground/50 hover:text-foreground hover:border-border/60",
                   copied &&
                     "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
                 )}
               >
-                {copied ? "Copied!" : "Copy URL"}
+                {copied
+                  ? "Copied!"
+                  : shareMode
+                  ? "Copy URL"
+                  : "Enable Share →"}
               </button>
               <button
                 type="button"
@@ -669,7 +731,7 @@ export function ShortcutManager() {
           {shortcuts.length > 0 && (
             <div
               className={cn(
-                viewMode === "list" ? "space-y-3" : "grid grid-cols-2 gap-4"
+                viewMode === "list" ? "space-y-4" : "grid grid-cols-2 gap-5"
               )}
             >
               {shortcuts.map((shortcut) => {
@@ -730,7 +792,7 @@ function ShortcutCard({
         testMode && matched
           ? "border-primary/40 bg-primary/[0.04] shadow-[0_0_0_1px_hsl(var(--primary)/0.15),0_4px_20px_rgba(124,92,252,0.08)]"
           : "border-border/60 shadow-ring hover:shadow-ring-lg",
-        viewMode === "list" ? "flex items-start gap-5 p-5" : "flex flex-col gap-3 p-5"
+        viewMode === "list" ? "flex items-start gap-6 p-6" : "flex flex-col gap-4 p-6"
       )}
     >
       {/* Top-right actions — always visible on touch, hover on desktop */}
@@ -775,11 +837,11 @@ function ShortcutCard({
 
       {/* Text */}
       <div className={cn("flex-1 min-w-0", viewMode === "grid" && "pr-8")}>
-        <h3 className="text-base font-semibold text-foreground leading-snug">
+        <h3 className="text-lg font-semibold text-foreground leading-snug">
           {shortcut.action}
         </h3>
         {shortcut.description && (
-          <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
+          <p className="mt-1.5 text-sm text-muted-foreground leading-relaxed">
             {shortcut.description}
           </p>
         )}
