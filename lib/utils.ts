@@ -36,6 +36,9 @@ export const keySymbolMap: Record<string, { display: string; symbol: string }> =
   pagedown: { display: "⇟", symbol: "⇟" },
   home: { display: "↖", symbol: "↖" },
   end: { display: "↘", symbol: "↘" },
+  win: { display: "⊞", symbol: "⊞" },
+  windows: { display: "⊞", symbol: "⊞" },
+  super: { display: "⊞", symbol: "⊞" },
 }
 
 export type KeyItem = string | { display: string; key: string }

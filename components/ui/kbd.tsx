@@ -8,77 +8,87 @@ interface KbdProps extends React.HTMLAttributes<HTMLSpanElement> {
   className?: string
   active?: boolean
   listenToKeyboard?: boolean
+  pressedKeys?: Set<string>
+  /** Show "+" separator between keys (default: true) */
+  showSeparator?: boolean
 }
 
-function Kbd({ keys, className, active, listenToKeyboard, ...props }: KbdProps) {
-  const [pressed, setPressed] = React.useState(false)
+function Kbd({
+  keys,
+  className,
+  active,
+  listenToKeyboard,
+  pressedKeys,
+  showSeparator = true,
+  ...props
+}: KbdProps) {
+  const [pressedSelf, setPressedSelf] = React.useState(false)
   const normalized = React.useMemo(() => normalizeKeys(keys), [keys])
-  const isActive = active || (listenToKeyboard && pressed)
 
+  // Self-contained keyboard listening
   React.useEffect(() => {
     if (!listenToKeyboard) return
+    const localPressed = new Set<string>()
 
-    const pressedKeys = new Set<string>()
-
-    function checkCombination() {
-      const allPressed = normalized.every((k) => pressedKeys.has(k.listenKey))
-      setPressed(allPressed)
+    function check() {
+      setPressedSelf(
+        normalized.length > 0 &&
+          normalized.every((k) => localPressed.has(k.listenKey))
+      )
     }
 
-    function handleKeyDown(e: KeyboardEvent) {
-      const key = e.key.toLowerCase()
-      pressedKeys.add(key)
-      checkCombination()
+    function onKeyDown(e: KeyboardEvent) {
+      localPressed.add(e.key.toLowerCase())
+      check()
+    }
+    function onKeyUp(e: KeyboardEvent) {
+      localPressed.delete(e.key.toLowerCase())
+      check()
+    }
+    function onBlur() {
+      localPressed.clear()
+      setPressedSelf(false)
     }
 
-    function handleKeyUp(e: KeyboardEvent) {
-      const key = e.key.toLowerCase()
-      pressedKeys.delete(key)
-      checkCombination()
-    }
-
-    function handleBlur() {
-      pressedKeys.clear()
-      setPressed(false)
-    }
-
-    window.addEventListener("keydown", handleKeyDown)
-    window.addEventListener("keyup", handleKeyUp)
-    window.addEventListener("blur", handleBlur)
-
+    window.addEventListener("keydown", onKeyDown)
+    window.addEventListener("keyup", onKeyUp)
+    window.addEventListener("blur", onBlur)
     return () => {
-      window.removeEventListener("keydown", handleKeyDown)
-      window.removeEventListener("keyup", handleKeyUp)
-      window.removeEventListener("blur", handleBlur)
+      window.removeEventListener("keydown", onKeyDown)
+      window.removeEventListener("keyup", onKeyUp)
+      window.removeEventListener("blur", onBlur)
     }
   }, [listenToKeyboard, normalized])
 
+  // External pressedKeys mode
+  const isActive =
+    active ||
+    pressedSelf ||
+    (pressedKeys !== undefined &&
+      normalized.length > 0 &&
+      normalized.every((k) => pressedKeys.has(k.listenKey)))
+
   return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-[2px]",
-        className
-      )}
-      {...props}
-    >
+    <span className={cn("inline-flex items-center gap-[3px]", className)} {...props}>
       {normalized.map((key, i) => (
-        <span key={i}>
+        <span key={i} className="inline-flex items-center gap-[3px]">
           <kbd
             className={cn(
-              "inline-flex h-7 min-w-[28px] items-center justify-center rounded-md px-[7px] text-[11px] font-medium leading-none select-none",
-              "border border-border/60 bg-muted/50 text-muted-foreground",
-              "shadow-[0_1px_0_0_hsl(var(--border)),0_1px_2px_0_rgba(0,0,0,0.05)]",
-              "transition-all duration-100 ease-out",
+              "inline-flex h-8 min-w-[32px] items-center justify-center rounded-lg px-[9px]",
+              "text-[12px] font-semibold leading-none tracking-wide select-none",
+              "border border-border/50 bg-gradient-to-b from-muted/80 to-muted/30 text-muted-foreground",
+              "shadow-[0_2px_0_0_hsl(var(--border)),0_1px_3px_0_rgba(0,0,0,0.08)]",
+              "transition-all duration-[80ms] ease-out will-change-transform",
               isActive && [
-                "border-primary/40 bg-primary/10 text-primary shadow-none",
-                "translate-y-[1px]",
+                "border-primary/30 bg-gradient-to-b from-primary/12 to-primary/8 text-primary shadow-none",
+                "translate-y-[2px]",
               ]
             )}
           >
             {key.display}
           </kbd>
-          {i < normalized.length - 1 && (
-            <span className="text-muted-foreground/40 mx-[2px] text-[11px] font-medium select-none">
+          {showSeparator && i < normalized.length - 1 && (
+            <span className="text-muted-foreground/30 text-[13px] font-semibold select-none leading-none">
               +
             </span>
           )}
