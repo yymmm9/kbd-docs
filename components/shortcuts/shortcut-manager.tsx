@@ -59,16 +59,25 @@ function useGlobalKeyTrap(active: boolean, onTrigger?: () => void) {
       forceRender((n) => n + 1)
     }
 
+    function onKeyPress(e: KeyboardEvent) {
+      const target = e.target as HTMLElement
+      const isInput = target.isContentEditable ||
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.tagName === "SELECT"
+      if (!isInput) e.preventDefault()
+    }
+
     window.addEventListener("keydown", onKeyDown, { capture: true })
     window.addEventListener("keyup", onKeyUp, { capture: true })
     window.addEventListener("blur", onBlur)
-    // Also prevent browser context menu / default on keypress
-    window.addEventListener("keypress", (e) => e.preventDefault(), { capture: true })
+    window.addEventListener("keypress", onKeyPress, { capture: true })
 
     return () => {
       window.removeEventListener("keydown", onKeyDown, { capture: true })
       window.removeEventListener("keyup", onKeyUp, { capture: true })
       window.removeEventListener("blur", onBlur)
+      window.removeEventListener("keypress", onKeyPress, { capture: true })
     }
   }, [active])
 
