@@ -74,21 +74,21 @@ function Kbd({
         <span key={i} className="inline-flex items-center gap-[3px]">
           <kbd
             className={cn(
-              "inline-flex h-10 min-w-[40px] items-center justify-center rounded-xl px-[11px]",
-              "text-[14px] font-semibold leading-none tracking-wide select-none",
+              "inline-flex h-12 min-w-[44px] items-center justify-center rounded-xl px-[13px]",
+              "text-base font-semibold leading-none tracking-wide select-none",
               "border border-border/50 bg-gradient-to-b from-muted/80 to-muted/30 text-muted-foreground",
-              "shadow-[0_2.5px_0_0_hsl(var(--border)),0_2px_6px_0_rgba(0,0,0,0.1)]",
+              "shadow-[0_3px_0_0_hsl(var(--border)),0_2px_8px_0_rgba(0,0,0,0.1)]",
               "transition-all duration-100 ease-out will-change-transform",
               isActive && [
                 "border-primary/30 bg-gradient-to-b from-primary/12 to-primary/8 text-primary shadow-none",
-                "translate-y-[2px]",
+                "translate-y-[3px]",
               ]
             )}
           >
             {key.display}
           </kbd>
           {showSeparator && i < normalized.length - 1 && (
-            <span className="text-muted-foreground/30 text-[15px] font-semibold select-none leading-none">
+            <span className="text-muted-foreground/30 text-base font-semibold select-none leading-none">
               +
             </span>
           )}

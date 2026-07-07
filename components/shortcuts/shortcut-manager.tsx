@@ -330,7 +330,7 @@ export function ShortcutManager() {
           </div>
           <div className="flex items-start justify-between gap-6">
             <div>
-              <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
+              <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl md:text-5xl">
                 Shortcut Cheatsheet
               </h1>
               <p className="mt-4 text-lg text-muted-foreground max-w-xl">
@@ -417,7 +417,7 @@ export function ShortcutManager() {
                   onKeyDown={handleInputKeyDown}
                   placeholder="win+shift+arrowLeft"
                   className={cn(
-                    "w-full h-10 rounded-lg border border-border/60 bg-muted/30 px-3 text-sm font-mono",
+                    "w-full h-12 rounded-xl border border-border/60 bg-muted/30 px-4 text-base font-mono",
                     "placeholder:text-muted-foreground/40",
                     "focus:outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/20",
                     "transition-all duration-150"
@@ -440,7 +440,7 @@ export function ShortcutManager() {
                   onKeyDown={handleInputKeyDown}
                   placeholder="Move window to next monitor"
                   className={cn(
-                    "w-full h-10 rounded-lg border border-border/60 bg-muted/30 px-3 text-sm",
+                    "w-full h-12 rounded-xl border border-border/60 bg-muted/30 px-4 text-base",
                     "placeholder:text-muted-foreground/40",
                     "focus:outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/20",
                     "transition-all duration-150"
@@ -457,12 +457,12 @@ export function ShortcutManager() {
                 value={descriptionInput}
                 onChange={(e) => setDescriptionInput(e.target.value)}
                 onKeyDown={handleInputKeyDown}
-                placeholder="Move the active window to the adjacent monitor"
-                className={cn(
-                  "w-full h-10 rounded-lg border border-border/60 bg-muted/30 px-3 text-sm",
-                  "placeholder:text-muted-foreground/40",
-                  "focus:outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/20",
-                  "transition-all duration-150"
+                  placeholder="Move the active window to the adjacent monitor"
+                  className={cn(
+                    "w-full h-12 rounded-xl border border-border/60 bg-muted/30 px-4 text-base",
+                    "placeholder:text-muted-foreground/40",
+                    "focus:outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/20",
+                    "transition-all duration-150"
                 )}
               />
             </div>
@@ -513,7 +513,7 @@ export function ShortcutManager() {
                 </span>
               )}
             </h2>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               {/* Share toggle */}
               <button
                 type="button"
@@ -675,7 +675,7 @@ export function ShortcutManager() {
                 }
                 rows={4}
                 className={cn(
-                  "w-full rounded-lg border border-border/60 bg-muted/30 p-3 text-sm font-mono",
+                  "w-full rounded-xl border border-border/60 bg-muted/30 p-4 text-base font-mono",
                   "placeholder:text-muted-foreground/40",
                   "focus:outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/20",
                   "transition-all duration-150 resize-none"
@@ -731,7 +731,7 @@ export function ShortcutManager() {
           {shortcuts.length > 0 && (
             <div
               className={cn(
-                viewMode === "list" ? "space-y-4" : "grid grid-cols-2 gap-5"
+                viewMode === "list" ? "space-y-4" : "grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-5"
               )}
             >
               {shortcuts.map((shortcut) => {
