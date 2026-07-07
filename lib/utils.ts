@@ -72,6 +72,8 @@ export interface Shortcut {
   description: string
   /** Alternative key combos (space-separated in input) */
   alts?: string[][]
+  /** Group/category for organizing shortcuts */
+  group?: string
 }
 
 let counter = 0
@@ -88,7 +90,9 @@ export function exportShortcutsAsText(shortcuts: Shortcut[]): string {
       const combos = [s.keys, ...(s.alts || [])]
         .map((c) => c.join("+"))
         .join(" ")
-      return `${combos} | ${s.action} | ${s.description}`
+      const parts = [combos, s.action, s.description]
+      if (s.group) parts.push(s.group)
+      return parts.join(" | ")
     })
     .join("\n")
 }
@@ -108,6 +112,7 @@ export function parseImportText(text: string): Omit<Shortcut, "id">[] {
         alts: combos.length > 1 ? combos.slice(1) : undefined,
         action: parts[1] || "",
         description: parts[2] || "",
+        group: parts[3] || undefined,
       }
     })
     .filter((s) => s.keys.length > 0 && s.action)

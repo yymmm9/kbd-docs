@@ -131,6 +131,7 @@ export function ShortcutManager() {
   const [keysInput, setKeysInput] = useState("")
   const [actionInput, setActionInput] = useState("")
   const [descriptionInput, setDescriptionInput] = useState("")
+  const [groupInput, setGroupInput] = useState("")
   const [editingId, setEditingId] = useState<string | null>(null)
   const [copiedUrl, setCopiedUrl] = useState(false)
   const [copiedJson, setCopiedJson] = useState(false)
@@ -161,6 +162,7 @@ export function ShortcutManager() {
     setKeysInput("")
     setActionInput("")
     setDescriptionInput("")
+    setGroupInput("")
     setEditingId(null)
   }, [])
 
@@ -172,6 +174,7 @@ export function ShortcutManager() {
       setKeysInput(combos)
       setActionInput(shortcut.action)
       setDescriptionInput(shortcut.description)
+      setGroupInput(shortcut.group || "")
       setEditingId(shortcut.id)
     },
     []
@@ -181,6 +184,7 @@ export function ShortcutManager() {
     const combos = parseKeys(keysInput)
     const keys = combos[0] || []
     const alts = combos.length > 1 ? combos.slice(1) : undefined
+    const group = groupInput.trim() || undefined
     if (keys.length === 0 || !actionInput.trim()) return
 
     if (editingId) {
@@ -191,6 +195,7 @@ export function ShortcutManager() {
                 ...s,
                 keys,
                 alts,
+                group,
                 action: actionInput.trim(),
                 description: descriptionInput.trim(),
               }
@@ -204,13 +209,14 @@ export function ShortcutManager() {
           id: createShortcutId(),
           keys,
           alts,
+          group,
           action: actionInput.trim(),
           description: descriptionInput.trim(),
         },
       ])
     }
     resetForm()
-  }, [keysInput, actionInput, descriptionInput, editingId, shortcuts, setShortcuts, parseKeys, resetForm])
+  }, [keysInput, actionInput, descriptionInput, groupInput, editingId, shortcuts, setShortcuts, parseKeys, resetForm])
 
   const removeShortcut = useCallback(
     (id: string) => {
@@ -257,6 +263,8 @@ export function ShortcutManager() {
                 keys: s.keys || [],
                 action: s.action || "",
                 description: s.description || "",
+                alts: s.alts,
+                group: s.group,
               }))
               .filter((s) => s.keys.length > 0 && s.action)
             setShortcuts([...shortcuts, ...imported])
@@ -285,6 +293,8 @@ export function ShortcutManager() {
             keys: s.keys || [],
             action: s.action || "",
             description: s.description || "",
+            alts: s.alts,
+            group: s.group,
           }))
           .filter((s) => s.keys.length > 0 && s.action)
         setShortcuts([...shortcuts, ...imported])
@@ -460,23 +470,43 @@ export function ShortcutManager() {
                 />
               </div>
             </div>
-            <div className="mt-3">
-              <label className="block text-sm font-medium text-foreground mb-1.5">
-                Description
-              </label>
-              <input
-                type="text"
-                value={descriptionInput}
-                onChange={(e) => setDescriptionInput(e.target.value)}
-                onKeyDown={handleInputKeyDown}
+            <div className="mt-3 grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1.5">
+                  Description
+                </label>
+                <input
+                  type="text"
+                  value={descriptionInput}
+                  onChange={(e) => setDescriptionInput(e.target.value)}
+                  onKeyDown={handleInputKeyDown}
                   placeholder="Move the active window to the adjacent monitor"
                   className={cn(
                     "w-full h-12 rounded-xl border border-border/60 bg-muted/30 px-4 text-base",
                     "placeholder:text-muted-foreground/40",
                     "focus:outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/20",
                     "transition-all duration-150"
-                )}
-              />
+                  )}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1.5">
+                  Group
+                </label>
+                <input
+                  type="text"
+                  value={groupInput}
+                  onChange={(e) => setGroupInput(e.target.value)}
+                  onKeyDown={handleInputKeyDown}
+                  placeholder="Window Management"
+                  className={cn(
+                    "w-full h-12 rounded-xl border border-border/60 bg-muted/30 px-4 text-base",
+                    "placeholder:text-muted-foreground/40",
+                    "focus:outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/20",
+                    "transition-all duration-150"
+                  )}
+                />
+              </div>
             </div>
             <div className="mt-4 flex items-center gap-3">
               <button
@@ -741,27 +771,54 @@ export function ShortcutManager() {
             </div>
           )}
 
-          {/* Shortcut Cards */}
+          {/* Shortcut Cards — grouped */}
           {shortcuts.length > 0 && (
-            <div
-              className={cn(
-                viewMode === "list" ? "space-y-4" : "grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-5"
-              )}
-            >
-              {shortcuts.map((shortcut) => {
-                return (
-                    <ShortcutCard
-                    key={shortcut.id}
-                    shortcut={shortcut}
-                    pressedKeys={pressedKeys}
-                    testMode={testMode}
-                    viewMode={viewMode}
-                    onEdit={startEdit}
-                    onRemove={removeShortcut}
-                  />
-                )
-              })}
-            </div>
+            <>
+              {(() => {
+                const grouped: Record<string, Shortcut[]> = {}
+                shortcuts.forEach((s) => {
+                  const g = s.group || "Ungrouped"
+                  if (!grouped[g]) grouped[g] = []
+                  grouped[g].push(s)
+                })
+                const sortedGroups = Object.entries(grouped).sort(([a], [b]) => {
+                  if (a === "Ungrouped") return 1
+                  if (b === "Ungrouped") return -1
+                  return a.localeCompare(b)
+                })
+                return sortedGroups.map(([groupName, groupShortcuts]) => (
+                  <div key={groupName} className="mb-8 last:mb-0">
+                    <div className="flex items-center gap-2 mb-4">
+                      <h3 className="text-base font-semibold text-foreground/80">
+                        {groupName}
+                      </h3>
+                      <span className="text-xs text-muted-foreground/50 font-medium px-2 py-0.5 rounded-full bg-muted/50 border border-border/40">
+                        {groupShortcuts.length}
+                      </span>
+                    </div>
+                    <div
+                      className={cn(
+                        viewMode === "list"
+                          ? "space-y-4"
+                          : "grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-5"
+                      )}
+                    >
+                      {groupShortcuts.map((shortcut) => (
+                        <ShortcutCard
+                          key={shortcut.id}
+                          shortcut={shortcut}
+                          pressedKeys={pressedKeys}
+                          testMode={testMode}
+                          viewMode={viewMode}
+                          onEdit={startEdit}
+                          onRemove={removeShortcut}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))
+              })()}
+            </>
           )}
         </section>
       </main>
