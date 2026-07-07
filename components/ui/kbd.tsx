@@ -14,6 +14,8 @@ interface KbdProps extends React.HTMLAttributes<HTMLSpanElement> {
   pressedKeys?: Set<string>
   /** Show "+" separator between keys (default: true) */
   showSeparator?: boolean
+  /** Platform override (auto-detected by default) */
+  isMac?: boolean
 }
 
 function Kbd({
@@ -23,10 +25,11 @@ function Kbd({
   listenToKeyboard,
   pressedKeys,
   showSeparator = true,
+  isMac,
   ...props
 }: KbdProps) {
   const [localPressed, setLocalPressed] = React.useState<Set<string>>(new Set())
-  const normalized = React.useMemo(() => normalizeKeys(keys), [keys])
+  const normalized = React.useMemo(() => normalizeKeys(keys, isMac), [keys, isMac])
 
   // Self-contained keyboard listening — tracks individual keys
   React.useEffect(() => {

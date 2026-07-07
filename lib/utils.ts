@@ -7,7 +7,7 @@ export function cn(...inputs: ClassValue[]) {
 
 // ── Key Symbol Map ──────────────────────────────────────────
 
-export const keySymbolMap: Record<string, { display: string; symbol: string }> = {
+const keySymbolMap: Record<string, { display: string; symbol: string }> = {
   command: { display: "⌘", symbol: "⌘" },
   cmd: { display: "⌘", symbol: "⌘" },
   control: { display: "⌃", symbol: "⌃" },
@@ -39,21 +39,62 @@ export const keySymbolMap: Record<string, { display: string; symbol: string }> =
   win: { display: "⊞", symbol: "⊞" },
   windows: { display: "⊞", symbol: "⊞" },
   super: { display: "⊞", symbol: "⊞" },
+  // Function keys
+  f1: { display: "F1", symbol: "F1" },
+  f2: { display: "F2", symbol: "F2" },
+  f3: { display: "F3", symbol: "F3" },
+  f4: { display: "F4", symbol: "F4" },
+  f5: { display: "F5", symbol: "F5" },
+  f6: { display: "F6", symbol: "F6" },
+  f7: { display: "F7", symbol: "F7" },
+  f8: { display: "F8", symbol: "F8" },
+  f9: { display: "F9", symbol: "F9" },
+  f10: { display: "F10", symbol: "F10" },
+  f11: { display: "F11", symbol: "F11" },
+  f12: { display: "F12", symbol: "F12" },
 }
+
+// On macOS we show ⌘ for cmd; elsewhere show Ctrl (common convention)
+const CMD_DISPLAY_MAC = "⌘"
+const CMD_DISPLAY_NON_MAC = "Ctrl"
 
 export type KeyItem = string | { display: string; key: string }
 
-export function normalizeKeys(keys: KeyItem[]): { display: string; listenKey: string }[] {
+// listenKey maps to what e.key.toLowerCase() produces when the key is pressed
+//   cmd → "meta"     (e.key is "Meta" on both Mac ⌘ and Windows ⊞ Win)
+//   ctrl → "control" (e.key is "Control")
+//   shift → "shift"  (e.key is "Shift")
+//   alt → "alt"      (e.key is "Alt")
+function listenKey(input: string): string {
+  const lower = input.toLowerCase()
+  if (lower === "cmd" || lower === "command" || lower === "meta") return "meta"
+  if (lower === "ctrl" || lower === "control") return "control"
+  if (lower === "alt" || lower === "option") return "alt"
+  if (lower === "shift") return "shift"
+  return lower
+}
+
+export function normalizeKeys(
+  keys: KeyItem[],
+  isMac?: boolean
+): { display: string; listenKey: string }[] {
   return keys.map((key) => {
     if (typeof key === "string") {
       const lower = key.toLowerCase()
       const mapped = keySymbolMap[lower]
       if (mapped) {
-        return { display: mapped.display, listenKey: lower }
+        // Platform-aware display: cmd → ⌘ on Mac, Ctrl on non-Mac
+        if ((lower === "cmd" || lower === "command") && isMac === false) {
+          return { display: CMD_DISPLAY_NON_MAC, listenKey: listenKey(lower) }
+        }
+        return { display: mapped.display, listenKey: listenKey(lower) }
       }
-      return { display: key.length === 1 ? key.toUpperCase() : key, listenKey: lower }
+      return {
+        display: key.length === 1 ? key.toUpperCase() : key,
+        listenKey: listenKey(lower),
+      }
     }
-    return { display: key.display, listenKey: key.key.toLowerCase() }
+    return { display: key.display, listenKey: listenKey(key.key) }
   })
 }
 
