@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useRef, useEffect } from "react"
+import { useState, useCallback, useRef, useEffect, useMemo } from "react"
 import { useQueryState } from "nuqs"
 import { Kbd } from "@/components/ui/kbd"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
@@ -67,11 +67,14 @@ function useGlobalKeyTrap(active: boolean, onTrigger?: () => void) {
   return pressedRef.current
 }
 
-// ── Hook: individual combo match detection ────────────────────
+// ── Hook: multi-combo match detection ─────────────────────────
 
-function useComboMatch(normalized: { listenKey: string }[], pressedKeys: Set<string>): boolean {
-  return (
-    normalized.length > 0 && normalized.every((k) => pressedKeys.has(k.listenKey))
+function useAnyComboMatch(
+  combos: { listenKey: string }[][],
+  pressedKeys: Set<string>
+): boolean {
+  return combos.some(
+    (combo) => combo.length > 0 && combo.every((k) => pressedKeys.has(k.listenKey))
   )
 }
 
@@ -143,11 +146,15 @@ export function ShortcutManager() {
   // ── helpers ──
 
   const parseKeys = useCallback((raw: string) => {
-    return raw
-      .toLowerCase()
-      .split("+")
-      .map((s) => s.trim())
-      .filter(Boolean)
+    const rawCombos = raw.split(" ").filter(Boolean)
+    const combos = rawCombos.map((combo) =>
+      combo
+        .toLowerCase()
+        .split("+")
+        .map((s) => s.trim())
+        .filter(Boolean)
+    )
+    return combos
   }, [])
 
   const resetForm = useCallback(() => {
@@ -159,7 +166,10 @@ export function ShortcutManager() {
 
   const startEdit = useCallback(
     (shortcut: Shortcut) => {
-      setKeysInput(shortcut.keys.join("+"))
+      const combos = [shortcut.keys, ...(shortcut.alts || [])]
+        .map((c) => c.join("+"))
+        .join(" ")
+      setKeysInput(combos)
       setActionInput(shortcut.action)
       setDescriptionInput(shortcut.description)
       setEditingId(shortcut.id)
@@ -168,7 +178,9 @@ export function ShortcutManager() {
   )
 
   const saveShortcut = useCallback(() => {
-    const keys = parseKeys(keysInput)
+    const combos = parseKeys(keysInput)
+    const keys = combos[0] || []
+    const alts = combos.length > 1 ? combos.slice(1) : undefined
     if (keys.length === 0 || !actionInput.trim()) return
 
     if (editingId) {
@@ -178,6 +190,7 @@ export function ShortcutManager() {
             ? {
                 ...s,
                 keys,
+                alts,
                 action: actionInput.trim(),
                 description: descriptionInput.trim(),
               }
@@ -190,6 +203,7 @@ export function ShortcutManager() {
         {
           id: createShortcutId(),
           keys,
+          alts,
           action: actionInput.trim(),
           description: descriptionInput.trim(),
         },
@@ -300,8 +314,8 @@ export function ShortcutManager() {
     // Don't prevent default here — only in test mode globally
   }
 
-  // For the key preview in the form, normalize once per render
-  const previewKeys = keysInput.trim() ? parseKeys(keysInput) : []
+  const parsedCombos = keysInput.trim() ? parseKeys(keysInput) : []
+  const previewKeys = parsedCombos[0] || []
 
   return (
     <div className="min-h-screen">
@@ -413,7 +427,7 @@ export function ShortcutManager() {
                   value={keysInput}
                   onChange={(e) => setKeysInput(e.target.value)}
                   onKeyDown={handleInputKeyDown}
-                  placeholder="win+shift+arrowLeft"
+                  placeholder="win+shift+arrowLeft win+shift+arrowRight"
                   className={cn(
                     "w-full h-12 rounded-xl border border-border/60 bg-muted/30 px-4 text-base font-mono",
                     "placeholder:text-muted-foreground/40",
@@ -778,12 +792,34 @@ function ShortcutCard({
   onEdit: (shortcut: Shortcut) => void
   onRemove: (id: string) => void
 }) {
-  // Memoize the match for this specific combo
-  const normalized = useRef<{ listenKey: string }[] | null>(null)
-  if (normalized.current === null) {
-    normalized.current = normalizeKeys(shortcut.keys)
+  // Memoize all combos (primary + alts)
+  const combosRef = useRef<string[][] | null>(null)
+  if (combosRef.current === null) {
+    combosRef.current = [shortcut.keys, ...(shortcut.alts || [])]
   }
-  const matched = useComboMatch(normalized.current, pressedKeys)
+  const normalizedCombos = useMemo(
+    () => combosRef.current!.map((c) => normalizeKeys(c)),
+    []
+  )
+  const matched = useAnyComboMatch(normalizedCombos, pressedKeys)
+
+  // Build rendered combo chunks: each is either a Kbd or an "or" span
+  const comboElements = useMemo(() => {
+    const elements: React.ReactNode[] = []
+    combosRef.current!.forEach((combo, i) => {
+      if (i > 0) {
+        elements.push(
+          <span key={`or-${i}`} className="text-muted-foreground/40 text-sm font-medium mx-1 select-none">
+            or
+          </span>
+        )
+      }
+      elements.push(
+        <Kbd key={`combo-${i}`} keys={combo} pressedKeys={testMode ? pressedKeys : undefined} />
+      )
+    })
+    return elements
+  }, [testMode, pressedKeys])
 
   return (
     <div
@@ -831,8 +867,8 @@ function ShortcutCard({
       </div>
 
       {/* Keys */}
-      <div className={cn(viewMode === "grid" ? "" : "flex-shrink-0 pt-0.5")}>
-        <Kbd keys={shortcut.keys} pressedKeys={testMode ? pressedKeys : undefined} />
+      <div className={cn("flex flex-wrap items-center gap-1", viewMode === "grid" ? "" : "flex-shrink-0 pt-0.5")}>
+        {comboElements}
       </div>
 
       {/* Text */}

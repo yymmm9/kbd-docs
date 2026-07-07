@@ -70,6 +70,8 @@ export interface Shortcut {
   keys: string[]
   action: string
   description: string
+  /** Alternative key combos (space-separated in input) */
+  alts?: string[][]
 }
 
 let counter = 0
@@ -83,8 +85,10 @@ export function createShortcutId(): string {
 export function exportShortcutsAsText(shortcuts: Shortcut[]): string {
   return shortcuts
     .map((s) => {
-      const combo = s.keys.join("+")
-      return `${combo} | ${s.action} | ${s.description}`
+      const combos = [s.keys, ...(s.alts || [])]
+        .map((c) => c.join("+"))
+        .join(" ")
+      return `${combos} | ${s.action} | ${s.description}`
     })
     .join("\n")
 }
@@ -97,8 +101,11 @@ export function parseImportText(text: string): Omit<Shortcut, "id">[] {
     .map((line) => {
       const parts = line.split("|").map((p) => p.trim())
       const keysPart = parts[0] || ""
+      const rawCombos = keysPart.split(" ").filter(Boolean)
+      const combos = rawCombos.map((c) => c.split("+").filter(Boolean))
       return {
-        keys: keysPart.split("+").filter(Boolean),
+        keys: combos[0] || [],
+        alts: combos.length > 1 ? combos.slice(1) : undefined,
         action: parts[1] || "",
         description: parts[2] || "",
       }
