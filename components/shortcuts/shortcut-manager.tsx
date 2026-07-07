@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from "react"
 import { useQueryState } from "nuqs"
 import { Kbd } from "@/components/ui/kbd"
+import { ThemeToggle } from "@/components/ui/theme-toggle"
 import {
   cn,
   type Shortcut,
@@ -128,7 +129,9 @@ export function ShortcutManager() {
   const [actionInput, setActionInput] = useState("")
   const [descriptionInput, setDescriptionInput] = useState("")
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
+  const [copiedUrl, setCopiedUrl] = useState(false)
+  const [copiedJson, setCopiedJson] = useState(false)
+  const [copiedTxt, setCopiedTxt] = useState(false)
   const [importText, setImportText] = useState("")
   const [showImport, setShowImport] = useState(false)
   const [testMode, setTestMode] = useState(true)
@@ -206,30 +209,22 @@ export function ShortcutManager() {
     const url = new URL(window.location.href)
     url.searchParams.set("s", JSON.stringify(shortcuts))
     await navigator.clipboard.writeText(url.toString())
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    setCopiedUrl(true)
+    setTimeout(() => setCopiedUrl(false), 2000)
   }, [shortcuts])
 
-  const handleExportJson = useCallback(() => {
-    const blob = new Blob([JSON.stringify(shortcuts, null, 2)], {
-      type: "application/json",
-    })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = "shortcuts.json"
-    a.click()
-    URL.revokeObjectURL(url)
+  const handleExportJson = useCallback(async () => {
+    const text = JSON.stringify(shortcuts, null, 2)
+    await navigator.clipboard.writeText(text)
+    setCopiedJson(true)
+    setTimeout(() => setCopiedJson(false), 2000)
   }, [shortcuts])
 
-  const handleExportText = useCallback(() => {
-    const blob = new Blob([exportShortcutsAsText(shortcuts)], { type: "text/plain" })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = "shortcuts.txt"
-    a.click()
-    URL.revokeObjectURL(url)
+  const handleExportText = useCallback(async () => {
+    const text = exportShortcutsAsText(shortcuts)
+    await navigator.clipboard.writeText(text)
+    setCopiedTxt(true)
+    setTimeout(() => setCopiedTxt(false), 2000)
   }, [shortcuts])
 
   const handleImportFile = useCallback(
@@ -337,6 +332,9 @@ export function ShortcutManager() {
                 Define your keyboard shortcuts with descriptions, then test them
                 live. Share via URL, JSON, or plain text.
               </p>
+            </div>
+            <div className="flex-shrink-0 pt-1">
+              <ThemeToggle />
             </div>
           </div>
         </div>
@@ -586,11 +584,11 @@ export function ShortcutManager() {
                   shareMode
                     ? "border-border/60 bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground"
                     : "border-dashed border-muted-foreground/25 text-muted-foreground/50 hover:text-foreground hover:border-border/60",
-                  copied &&
+                  copiedUrl &&
                     "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
                 )}
               >
-                {copied
+                {copiedUrl
                   ? "Copied!"
                   : shareMode
                   ? "Copy URL"
@@ -602,13 +600,14 @@ export function ShortcutManager() {
                 disabled={shortcuts.length === 0}
                 className={cn(
                   "inline-flex h-8 items-center justify-center rounded-lg px-3 text-xs font-medium",
-                  "border border-border/60 bg-muted/50 text-muted-foreground",
-                  "hover:bg-muted hover:text-foreground",
-                  "disabled:opacity-30 disabled:pointer-events-none",
-                  "transition-all duration-150"
+                  "border transition-all duration-150 active:scale-[0.97]",
+                  copiedJson
+                    ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                    : "border-border/60 bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground",
+                  "disabled:opacity-30 disabled:pointer-events-none"
                 )}
               >
-                JSON
+                {copiedJson ? "Copied!" : "JSON"}
               </button>
               <button
                 type="button"
@@ -616,13 +615,14 @@ export function ShortcutManager() {
                 disabled={shortcuts.length === 0}
                 className={cn(
                   "inline-flex h-8 items-center justify-center rounded-lg px-3 text-xs font-medium",
-                  "border border-border/60 bg-muted/50 text-muted-foreground",
-                  "hover:bg-muted hover:text-foreground",
-                  "disabled:opacity-30 disabled:pointer-events-none",
-                  "transition-all duration-150"
+                  "border transition-all duration-150 active:scale-[0.97]",
+                  copiedTxt
+                    ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                    : "border-border/60 bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground",
+                  "disabled:opacity-30 disabled:pointer-events-none"
                 )}
               >
-                TXT
+                {copiedTxt ? "Copied!" : "TXT"}
               </button>
               {shortcuts.length > 0 && (
                 <button
