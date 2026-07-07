@@ -27,8 +27,16 @@ function useGlobalKeyTrap(active: boolean, onTrigger?: () => void) {
     }
 
     function onKeyDown(e: KeyboardEvent) {
-      e.preventDefault()
-      e.stopPropagation()
+      // Don't prevent default when typing in input/textarea
+      const target = e.target as HTMLElement
+      const isInput = target.isContentEditable ||
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.tagName === "SELECT"
+      if (!isInput) {
+        e.preventDefault()
+        e.stopPropagation()
+      }
       const key = e.key.toLowerCase()
       if (!pressedRef.current.has(key)) {
         pressedRef.current = new Set(pressedRef.current).add(key)
@@ -123,14 +131,37 @@ export function ShortcutManager() {
   // ── helpers ──
 
   const parseKeys = useCallback((raw: string) => {
-    const rawCombos = raw.split(" ").filter(Boolean)
-    const combos = rawCombos.map((combo) =>
-      combo
+    const tokens = raw.split(" ").filter(Boolean)
+    if (tokens.length === 0) return []
+
+    // First token is the base combo
+    const combos: string[][] = []
+    combos.push(
+      tokens[0]
         .toLowerCase()
         .split("+")
         .map((s) => s.trim())
         .filter(Boolean)
     )
+
+    // Remaining tokens: if they contain "+" use as full combo,
+    // otherwise treat as alternative for the last key only
+    for (let i = 1; i < tokens.length; i++) {
+      if (tokens[i].includes("+")) {
+        combos.push(
+          tokens[i]
+            .toLowerCase()
+            .split("+")
+            .map((s) => s.trim())
+            .filter(Boolean)
+        )
+      } else {
+        // Suffix-only: take base prefix (all but last key) + this key
+        const prefix = combos[0].slice(0, -1)
+        combos.push([...prefix, tokens[i].toLowerCase()])
+      }
+    }
+
     return combos
   }, [])
 
@@ -302,6 +333,22 @@ export function ShortcutManager() {
 
   const parsedCombos = keysInput.trim() ? parseKeys(keysInput) : []
   const previewKeys = parsedCombos[0] || []
+  const previewElements = useMemo(() => {
+    if (parsedCombos.length === 0) return null
+    const elements: React.ReactNode[] = []
+    parsedCombos.forEach((combo, i) => {
+      if (i > 0) {
+        elements.push(
+          <span key={`or-${i}`} className="text-muted-foreground/40 text-sm font-medium mx-1 select-none">
+            or
+          </span>
+        )
+      }
+      elements.push(<Kbd key={`combo-${i}`} keys={combo} />)
+    })
+    return elements
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [keysInput])
 
   return (
     <div className="min-h-screen">
@@ -413,7 +460,7 @@ export function ShortcutManager() {
                   value={keysInput}
                   onChange={(e) => setKeysInput(e.target.value)}
                   onKeyDown={handleInputKeyDown}
-                  placeholder="win+shift+arrowLeft win+shift+arrowRight"
+                  placeholder="win+shift+arrowLeft arrowRight"
                   className={cn(
                     "w-full h-12 rounded-xl border border-border/60 bg-muted/30 px-4 text-base font-mono",
                     "placeholder:text-muted-foreground/40",
@@ -421,9 +468,9 @@ export function ShortcutManager() {
                     "transition-all duration-150"
                   )}
                 />
-                {previewKeys.length > 0 && (
-                  <div className="mt-2">
-                    <Kbd keys={previewKeys} />
+                {parsedCombos.length > 0 && (
+                  <div className="mt-2 flex flex-wrap items-center">
+                    {previewElements}
                   </div>
                 )}
               </div>
@@ -665,7 +712,7 @@ export function ShortcutManager() {
                 value={importText}
                 onChange={(e) => setImportText(e.target.value)}
                 placeholder={
-                  "Paste JSON or text format:\ncmd+K | Toggle Command Palette | Open the palette\nctrl+S | Save | Save current file"
+                  "Paste JSON or text format:\ncmd+K | Toggle Command Palette | Open the palette\nctrl+S cmd+S | Save | Save current file | Editing"
                 }
                 rows={4}
                 className={cn(

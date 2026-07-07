@@ -105,8 +105,31 @@ export function parseImportText(text: string): Omit<Shortcut, "id">[] {
     .map((line) => {
       const parts = line.split("|").map((p) => p.trim())
       const keysPart = parts[0] || ""
-      const rawCombos = keysPart.split(" ").filter(Boolean)
-      const combos = rawCombos.map((c) => c.split("+").filter(Boolean))
+      const tokens = keysPart.split(" ").filter(Boolean)
+      const combos: string[][] = []
+      tokens.forEach((token, idx) => {
+        if (idx === 0) {
+          combos.push(
+            token
+              .toLowerCase()
+              .split("+")
+              .map((s) => s.trim())
+              .filter(Boolean)
+          )
+        } else if (token.includes("+")) {
+          combos.push(
+            token
+              .toLowerCase()
+              .split("+")
+              .map((s) => s.trim())
+              .filter(Boolean)
+          )
+        } else {
+          // Suffix-only: take base prefix (all but last key) + this key
+          const prefix = combos[0].slice(0, -1)
+          combos.push([...prefix, token.toLowerCase()])
+        }
+      })
       return {
         keys: combos[0] || [],
         alts: combos.length > 1 ? combos.slice(1) : undefined,
