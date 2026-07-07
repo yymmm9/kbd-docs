@@ -6,8 +6,11 @@ import { cn, type KeyItem, normalizeKeys } from "@/lib/utils"
 interface KbdProps extends React.HTMLAttributes<HTMLSpanElement> {
   keys: KeyItem[]
   className?: string
+  /** Force all keys to active state (shortcut-level override) */
   active?: boolean
+  /** Enable self-contained keyboard listening (key-level only) */
   listenToKeyboard?: boolean
+  /** External set of currently pressed keys (key-level) */
   pressedKeys?: Set<string>
   /** Show "+" separator between keys (default: true) */
   showSeparator?: boolean
@@ -22,32 +25,25 @@ function Kbd({
   showSeparator = true,
   ...props
 }: KbdProps) {
-  const [pressedSelf, setPressedSelf] = React.useState(false)
+  const [localPressed, setLocalPressed] = React.useState<Set<string>>(new Set())
   const normalized = React.useMemo(() => normalizeKeys(keys), [keys])
 
-  // Self-contained keyboard listening
+  // Self-contained keyboard listening — tracks individual keys
   React.useEffect(() => {
     if (!listenToKeyboard) return
-    const localPressed = new Set<string>()
-
-    function check() {
-      setPressedSelf(
-        normalized.length > 0 &&
-          normalized.every((k) => localPressed.has(k.listenKey))
-      )
-    }
 
     function onKeyDown(e: KeyboardEvent) {
-      localPressed.add(e.key.toLowerCase())
-      check()
+      setLocalPressed((prev) => new Set(prev).add(e.key.toLowerCase()))
     }
     function onKeyUp(e: KeyboardEvent) {
-      localPressed.delete(e.key.toLowerCase())
-      check()
+      setLocalPressed((prev) => {
+        const next = new Set(prev)
+        next.delete(e.key.toLowerCase())
+        return next
+      })
     }
     function onBlur() {
-      localPressed.clear()
-      setPressedSelf(false)
+      setLocalPressed(new Set())
     }
 
     window.addEventListener("keydown", onKeyDown)
@@ -58,15 +54,15 @@ function Kbd({
       window.removeEventListener("keyup", onKeyUp)
       window.removeEventListener("blur", onBlur)
     }
-  }, [listenToKeyboard, normalized])
+  }, [listenToKeyboard])
 
-  // External pressedKeys mode
-  const isActive =
-    active ||
-    pressedSelf ||
-    (pressedKeys !== undefined &&
-      normalized.length > 0 &&
-      normalized.every((k) => pressedKeys.has(k.listenKey)))
+  // Check if a specific key is pressed (key-level)
+  function isKeyPressed(listenKey: string): boolean {
+    if (active) return true
+    if (listenToKeyboard) return localPressed.has(listenKey)
+    if (pressedKeys !== undefined) return pressedKeys.has(listenKey)
+    return false
+  }
 
   return (
     <span className={cn("inline-flex items-center gap-[3px]", className)} {...props}>
@@ -79,7 +75,7 @@ function Kbd({
               "border border-border/50 bg-gradient-to-b from-muted/80 to-muted/30 text-muted-foreground",
               "shadow-[0_3px_0_0_hsl(var(--border)),0_2px_8px_0_rgba(0,0,0,0.1)]",
               "transition-all duration-100 ease-out will-change-transform",
-              isActive && [
+              isKeyPressed(key.listenKey) && [
                 "border-primary/30 bg-gradient-to-b from-primary/12 to-primary/8 text-primary shadow-none",
                 "translate-y-[3px]",
               ]
