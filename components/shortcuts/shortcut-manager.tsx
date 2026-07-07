@@ -125,6 +125,7 @@ export function ShortcutManager() {
   const [actionInput, setActionInput] = useState("")
   const [descriptionInput, setDescriptionInput] = useState("")
   const [groupInput, setGroupInput] = useState("")
+  const [groupCreating, setGroupCreating] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [copiedUrl, setCopiedUrl] = useState(false)
   const [copiedJson, setCopiedJson] = useState(false)
@@ -133,6 +134,20 @@ export function ShortcutManager() {
   const [showImport, setShowImport] = useState(false)
   const [testMode, setTestMode] = useState(true)
   const [viewMode, setViewMode] = useState<"list" | "grid">("list")
+  const [renamingGroup, setRenamingGroup] = useState<string | null>(null)
+  const [renameValue, setRenameValue] = useState("")
+
+  const isMac = useMemo(() => {
+    if (typeof navigator === "undefined") return true
+    return /mac|darwin/i.test(navigator.platform)
+  }, [])
+
+  const existingGroups = useMemo(() => {
+    const groups = new Set<string>()
+    shortcuts.forEach((s) => { if (s.group) groups.add(s.group) })
+    return Array.from(groups).sort()
+  }, [shortcuts])
+
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const pressedKeys = useGlobalKeyTrap(testMode)
@@ -179,6 +194,7 @@ export function ShortcutManager() {
     setActionInput("")
     setDescriptionInput("")
     setGroupInput("")
+    setGroupCreating(false)
     setEditingId(null)
   }, [])
 
@@ -191,6 +207,7 @@ export function ShortcutManager() {
       setActionInput(shortcut.action)
       setDescriptionInput(shortcut.description)
       setGroupInput(shortcut.group || "")
+      setGroupCreating(false)
       setEditingId(shortcut.id)
     },
     []
@@ -335,6 +352,25 @@ export function ShortcutManager() {
     setShortcuts([])
   }, [setShortcuts])
 
+  const commitRename = useCallback(
+    (oldName: string) => {
+      const trimmed = renameValue.trim()
+      if (!trimmed || trimmed === oldName) {
+        setRenamingGroup(null)
+        return
+      }
+      setShortcuts((prev) =>
+        prev.map((s) => {
+          const isUngrouped = oldName === "Ungrouped"
+          const match = isUngrouped ? !s.group : s.group === oldName
+          return match ? { ...s, group: trimmed } : s
+        })
+      )
+      setRenamingGroup(null)
+    },
+    [renameValue, setShortcuts]
+  )
+
   const handleInputKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") saveShortcut()
     // Don't prevent default here — only in test mode globally
@@ -353,7 +389,7 @@ export function ShortcutManager() {
           </span>
         )
       }
-      elements.push(<Kbd key={`combo-${i}`} keys={combo} />)
+      elements.push(<Kbd key={`combo-${i}`} keys={combo} isMac={isMac} />)
     })
     return elements
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -525,19 +561,82 @@ export function ShortcutManager() {
                 <label className="block text-sm font-medium text-foreground mb-1.5">
                   Group
                 </label>
-                <input
-                  type="text"
-                  value={groupInput}
-                  onChange={(e) => setGroupInput(e.target.value)}
-                  onKeyDown={handleInputKeyDown}
-                  placeholder="Window Management"
-                  className={cn(
-                    "w-full h-12 rounded-xl border border-border/60 bg-muted/30 px-4 text-base",
-                    "placeholder:text-muted-foreground/40",
-                    "focus:outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/20",
-                    "transition-all duration-150"
+                <div className="flex gap-2">
+                  {groupCreating ? (
+                    <>
+                      <input
+                        type="text"
+                        value={groupInput}
+                        onChange={(e) => setGroupInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") setGroupCreating(false)
+                          handleInputKeyDown(e)
+                        }}
+                        placeholder="New group name..."
+                        autoFocus
+                        className={cn(
+                          "flex-1 h-12 rounded-xl border border-border/60 bg-muted/30 px-4 text-base",
+                          "placeholder:text-muted-foreground/40",
+                          "focus:outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/20",
+                          "transition-all duration-150"
+                        )}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setGroupCreating(false)}
+                        className={cn(
+                          "h-12 w-12 shrink-0 flex items-center justify-center rounded-xl",
+                          "border border-border/60 bg-muted/50 text-muted-foreground",
+                          "hover:text-foreground hover:bg-muted",
+                          "transition-all duration-150 text-base"
+                        )}
+                      >
+                        ✕
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <select
+                        value={groupInput}
+                        onChange={(e) => {
+                          if (e.target.value === "__new__") {
+                            setGroupCreating(true)
+                            setGroupInput("")
+                          } else {
+                            setGroupInput(e.target.value)
+                          }
+                        }}
+                        className={cn(
+                          "flex-1 h-12 rounded-xl border border-border/60 bg-muted/30 px-4 text-base",
+                          "focus:outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/20",
+                          "transition-all duration-150"
+                        )}
+                      >
+                        <option value="">No group</option>
+                        {existingGroups.length > 0 && <option disabled>───</option>}
+                        {existingGroups.map((g) => (
+                          <option key={g} value={g}>
+                            {g}
+                          </option>
+                        ))}
+                        {existingGroups.length > 0 && <option disabled>───</option>}
+                        <option value="__new__">+ New group...</option>
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => { setGroupCreating(true); setGroupInput("") }}
+                        className={cn(
+                          "h-12 w-12 shrink-0 flex items-center justify-center rounded-xl",
+                          "border border-border/60 bg-muted/30 text-muted-foreground",
+                          "hover:text-foreground hover:bg-muted",
+                          "transition-all duration-150 text-xl font-bold leading-none"
+                        )}
+                      >
+                        +
+                      </button>
+                    </>
                   )}
-                />
+                </div>
               </div>
             </div>
             <div className="mt-4 flex items-center gap-3">
@@ -795,9 +894,40 @@ export function ShortcutManager() {
                 return sortedGroups.map(([groupName, groupShortcuts]) => (
                   <div key={groupName} className="mb-8 last:mb-0">
                     <div className="flex items-center gap-2 mb-4">
-                      <h3 className="text-base font-semibold text-foreground/80">
-                        {groupName}
-                      </h3>
+                      {renamingGroup === groupName ? (
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={renameValue}
+                            onChange={(e) => setRenameValue(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") commitRename(groupName)
+                              if (e.key === "Escape") setRenamingGroup(null)
+                              e.stopPropagation()
+                            }}
+                            onBlur={() => commitRename(groupName)}
+                            autoFocus
+                            className={cn(
+                              "h-8 rounded-lg border border-primary/40 bg-muted/30 px-3 text-base font-semibold",
+                              "focus:outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/20",
+                              "transition-all duration-150"
+                            )}
+                          />
+                          <span className="text-xs text-muted-foreground/40">
+                            ↵ save &nbsp;⎋ cancel
+                          </span>
+                        </div>
+                      ) : (
+                        <h3
+                          className="text-base font-semibold text-foreground/80 cursor-pointer hover:text-foreground transition-colors duration-150"
+                          onClick={() => {
+                            setRenameValue(groupName)
+                            setRenamingGroup(groupName)
+                          }}
+                        >
+                          {groupName}
+                        </h3>
+                      )}
                       <span className="text-xs text-muted-foreground/50 font-medium px-2 py-0.5 rounded-full bg-muted/50 border border-border/40">
                         {groupShortcuts.length}
                       </span>
@@ -816,6 +946,7 @@ export function ShortcutManager() {
                           pressedKeys={pressedKeys}
                           testMode={testMode}
                           viewMode={viewMode}
+                          isMac={isMac}
                           onEdit={startEdit}
                           onRemove={removeShortcut}
                         />
@@ -845,6 +976,7 @@ function ShortcutCard({
   pressedKeys,
   testMode,
   viewMode,
+  isMac,
   onEdit,
   onRemove,
 }: {
@@ -852,6 +984,7 @@ function ShortcutCard({
   pressedKeys: Set<string>
   testMode: boolean
   viewMode: "list" | "grid"
+  isMac: boolean
   onEdit: (shortcut: Shortcut) => void
   onRemove: (id: string) => void
 }) {
@@ -861,8 +994,8 @@ function ShortcutCard({
     combosRef.current = [shortcut.keys, ...(shortcut.alts || [])]
   }
   const normalizedCombos = useMemo(
-    () => combosRef.current!.map((c) => normalizeKeys(c)),
-    []
+    () => combosRef.current!.map((c) => normalizeKeys(c, isMac)),
+    [isMac]
   )
   const matched = useAnyComboMatch(normalizedCombos, pressedKeys)
 
@@ -878,11 +1011,11 @@ function ShortcutCard({
         )
       }
       elements.push(
-        <Kbd key={`combo-${i}`} keys={combo} pressedKeys={testMode ? pressedKeys : undefined} />
+        <Kbd key={`combo-${i}`} keys={combo} pressedKeys={testMode ? pressedKeys : undefined} isMac={isMac} />
       )
     })
     return elements
-  }, [testMode, pressedKeys])
+  }, [testMode, pressedKeys, isMac])
 
   return (
     <div
