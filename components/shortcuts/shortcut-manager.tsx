@@ -637,6 +637,7 @@ export function ShortcutManager() {
             <h2 className="text-lg font-semibold text-foreground">
               {editingId ? "Edit Block" : "Add Block"}
             </h2>
+          </div>
           <div className="rounded-xl border border-border/60 bg-card p-5 shadow-ring">
             {/* Type + Group row */}
             <div className="grid gap-4 sm:grid-cols-[1fr_1.5fr]">

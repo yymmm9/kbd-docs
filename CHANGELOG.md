@@ -22,6 +22,8 @@
 ### Fixed
 - Windows/super keys now render with proper SVG icon instead of `⊞` Unicode symbol
 - Special keys display tooltip labels (`title` attribute) on each kbd element
+- **Missing `</div>`** in editing form crashed Vercel SWC build (Unexpected token `div`)
+- **TypeScript strict errors**: `Shortcut.type` made required (removed `?`); `normalizeBlocks` uses `as unknown as Block`; `parseImportText` returns explicit `type: "shortcut"`
 
 ## [2026-07-06]
 
