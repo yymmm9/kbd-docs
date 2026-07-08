@@ -1,278 +1,264 @@
-import { type ClassValue, clsx } from "clsx"
+import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-// ── Key Symbol Map ──────────────────────────────────────────
+// ── Key Types ──────────────────────────────────────────────────
 
-const keySymbolMap: Record<string, { display: string; symbol: string }> = {
-  command: { display: "⌘", symbol: "⌘" },
-  cmd: { display: "⌘", symbol: "⌘" },
-  control: { display: "⌃", symbol: "⌃" },
-  ctrl: { display: "⌃", symbol: "⌃" },
-  option: { display: "⌥", symbol: "⌥" },
-  alt: { display: "⌥", symbol: "⌥" },
-  shift: { display: "⇧", symbol: "⇧" },
-  enter: { display: "↵", symbol: "↵" },
-  return: { display: "↵", symbol: "↵" },
-  escape: { display: "⎋", symbol: "⎋" },
-  esc: { display: "⎋", symbol: "⎋" },
-  tab: { display: "⇥", symbol: "⇥" },
-  space: { display: "␣", symbol: "␣" },
-  delete: { display: "⌫", symbol: "⌫" },
-  backspace: { display: "⌫", symbol: "⌫" },
-  arrowup: { display: "↑", symbol: "↑" },
-  up: { display: "↑", symbol: "↑" },
-  arrowdown: { display: "↓", symbol: "↓" },
-  down: { display: "↓", symbol: "↓" },
-  arrowleft: { display: "←", symbol: "←" },
-  left: { display: "←", symbol: "←" },
-  arrowright: { display: "→", symbol: "→" },
-  right: { display: "→", symbol: "→" },
-  capslock: { display: "⇪", symbol: "⇪" },
-  pageup: { display: "⇞", symbol: "⇞" },
-  pagedown: { display: "⇟", symbol: "⇟" },
-  home: { display: "↖", symbol: "↖" },
-  end: { display: "↘", symbol: "↘" },
-  win: { display: "⊞", symbol: "⊞" },
-  windows: { display: "⊞", symbol: "⊞" },
-  super: { display: "⊞", symbol: "⊞" },
-  // Function keys
-  f1: { display: "F1", symbol: "F1" },
-  f2: { display: "F2", symbol: "F2" },
-  f3: { display: "F3", symbol: "F3" },
-  f4: { display: "F4", symbol: "F4" },
-  f5: { display: "F5", symbol: "F5" },
-  f6: { display: "F6", symbol: "F6" },
-  f7: { display: "F7", symbol: "F7" },
-  f8: { display: "F8", symbol: "F8" },
-  f9: { display: "F9", symbol: "F9" },
-  f10: { display: "F10", symbol: "F10" },
-  f11: { display: "F11", symbol: "F11" },
-  f12: { display: "F12", symbol: "F12" },
+export interface KeyItem {
+  listenKey: string
+  label: string
+  display: string
+  symbolKey?: string
 }
 
-// Human-readable labels for tooltip display
-const keyTooltipMap: Record<string, string> = {
-  cmd: "Command",
-  command: "Command",
-  meta: "Meta",
-  ctrl: "Control",
-  control: "Control",
-  alt: "Option",
-  option: "Option",
-  shift: "Shift",
-  win: "Windows",
-  windows: "Windows",
-  super: "Windows",
-  enter: "Enter",
-  return: "Return",
-  escape: "Escape",
-  esc: "Escape",
-  tab: "Tab",
-  space: "Space",
-  delete: "Delete",
-  backspace: "Backspace",
-  capslock: "Caps Lock",
-  pageup: "Page Up",
-  pagedown: "Page Down",
-  home: "Home",
-  end: "End",
-  up: "Arrow Up",
-  arrowup: "Arrow Up",
-  down: "Arrow Down",
-  arrowdown: "Arrow Down",
-  left: "Arrow Left",
-  arrowleft: "Arrow Left",
-  right: "Arrow Right",
-  arrowright: "Arrow Right",
-}
+// ── Block Types ────────────────────────────────────────────────
 
-// On macOS we show ⌘ for cmd; elsewhere show Ctrl (common convention)
-const CMD_DISPLAY_MAC = "⌘"
-const CMD_DISPLAY_NON_MAC = "Ctrl"
+export type BlockType = "shortcut" | "section" | "note" | "code"
+export type NoteVariant = "info" | "warning" | "tip" | "danger"
 
-export type KeyItem = string | { display: string; key: string }
-
-// listenKey maps to what e.key.toLowerCase() produces when the key is pressed
-//   cmd → "meta"     (e.key is "Meta" on both Mac ⌘ and Windows ⊞ Win)
-//   ctrl → "control" (e.key is "Control")
-//   shift → "shift"  (e.key is "Shift")
-//   alt → "alt"      (e.key is "Alt")
-function listenKey(input: string): string {
-  const lower = input.toLowerCase()
-  if (lower === "cmd" || lower === "command" || lower === "meta") return "meta"
-  if (lower === "ctrl" || lower === "control") return "control"
-  if (lower === "alt" || lower === "option") return "alt"
-  if (lower === "shift") return "shift"
-  return lower
-}
-
-export function normalizeKeys(
-  keys: KeyItem[],
-  isMac?: boolean
-): { display: string; listenKey: string; label?: string; symbolKey?: string }[] {
-  return keys.map((key) => {
-    if (typeof key === "string") {
-      const lower = key.toLowerCase()
-      const mapped = keySymbolMap[lower]
-      if (mapped) {
-        const isWin = lower === "win" || lower === "windows" || lower === "super"
-        // Platform-aware display: cmd → ⌘ on Mac, Ctrl on non-Mac
-        if ((lower === "cmd" || lower === "command") && isMac === false) {
-          return { display: CMD_DISPLAY_NON_MAC, listenKey: listenKey(lower), label: "Command" }
-        }
-        return {
-          display: mapped.display,
-          listenKey: listenKey(lower),
-          label: keyTooltipMap[lower],
-          symbolKey: isWin ? "win" : undefined,
-        }
-      }
-      return {
-        display: key.length === 1 ? key.toUpperCase() : key,
-        listenKey: listenKey(lower),
-        label: keyTooltipMap[lower],
-      }
-    }
-    const lower = key.key.toLowerCase()
-    return {
-      display: key.display,
-      listenKey: listenKey(key.key),
-      label: keyTooltipMap[lower],
-      symbolKey: (lower === "win" || lower === "windows" || lower === "super") ? "win" : undefined,
-    }
-  })
-}
-
-export function formatKeysForDisplay(keys: KeyItem[]): string {
-  return normalizeKeys(keys)
-    .map((k) => k.display)
-    .join(" ")
-}
-
-// ── Shortcut Data Model ─────────────────────────────────────
-
-export interface Shortcut {
+export interface BaseBlock {
   id: string
-  type: "shortcut"
-  keys: string[]
-  action: string
-  description: string
-  /** Alternative key combos (space-separated in input) */
-  alts?: string[][]
-  /** Group/category for organizing blocks */
+  type: BlockType
   group?: string
 }
 
-// ── Documentation Block Types ──────────────────────────────
+export interface ShortcutBlock extends BaseBlock {
+  type: "shortcut"
+  keys: KeyItem[]
+  /** Alternate key combinations */
+  alts?: KeyItem[][]
+  /** Action name (shown in the UI) */
+  action: string
+  /** Short description */
+  description: string
+  /** Compact string like "ctrl+k" (derived from keys) */
+  combo: string
+}
 
-export type BlockType = "shortcut" | "section" | "note" | "code"
-
-export type NoteVariant = "info" | "warning" | "tip" | "danger"
-
-export interface SectionBlock {
-  id: string
+export interface SectionBlock extends BaseBlock {
   type: "section"
   title: string
   description?: string
-  group?: string
 }
 
-export interface NoteBlock {
-  id: string
+export interface NoteBlock extends BaseBlock {
   type: "note"
   variant: NoteVariant
   content: string
-  group?: string
 }
 
-export interface CodeBlock {
-  id: string
+export interface CodeBlock extends BaseBlock {
   type: "code"
   language: string
   code: string
-  group?: string
 }
 
-export type Block = Shortcut | SectionBlock | NoteBlock | CodeBlock
+export type Block = ShortcutBlock | SectionBlock | NoteBlock | CodeBlock
 
-/** Normalize raw data from URL or import: old Shortcut[] → Block[] */
-export function normalizeBlocks(raw: unknown): Block[] {
-  if (!Array.isArray(raw)) return []
-  return raw.map((item: Record<string, unknown>) => {
-    if (item.type) return item as unknown as Block
-    // Old format — no type field, treat as shortcut
-    return { ...item, type: "shortcut" } as Shortcut
+/** Type alias for ShortcutBlock used in type guards */
+export type Shortcut = ShortcutBlock
+
+// ── Key Normalization ──────────────────────────────────────────
+
+const KEY_LABELS: Record<string, { mac: string; default: string }> = {
+  control: { mac: "⌃", default: "Ctrl" },
+  ctrl: { mac: "⌃", default: "Ctrl" },
+  alt: { mac: "⌥", default: "Alt" },
+  option: { mac: "⌥", default: "Alt" },
+  meta: { mac: "⌘", default: "Win" },
+  windows: { mac: "⌘", default: "Win" },
+  win: { mac: "⌘", default: "Win" },
+  shift: { mac: "⇧", default: "Shift" },
+  capslock: { mac: "⇪", default: "Caps" },
+  enter: { mac: "↩", default: "Enter" },
+  return: { mac: "↩", default: "Enter" },
+  tab: { mac: "⇥", default: "Tab" },
+  backspace: { mac: "⌫", default: "Bksp" },
+  delete: { mac: "⌦", default: "Del" },
+  escape: { mac: "⎋", default: "Esc" },
+  esc: { mac: "⎋", default: "Esc" },
+  space: { mac: "␣", default: "Space" },
+  up: { mac: "↑", default: "↑" },
+  down: { mac: "↓", default: "↓" },
+  left: { mac: "←", default: "←" },
+  right: { mac: "→", default: "→" },
+  pageup: { mac: "⇞", default: "PgUp" },
+  pagedown: { mac: "⇟", default: "PgDn" },
+  home: { mac: "↖", default: "Home" },
+  end: { mac: "↘", default: "End" },
+}
+
+export function normalizeKeys(keys: KeyItem[], isMac = true): KeyItem[] {
+  return keys.map((k) => {
+    const lower = k.listenKey.toLowerCase()
+    const mapping = KEY_LABELS[lower]
+    if (!mapping) return k
+    const label = isMac ? mapping.mac : mapping.default
+    // Only update display if the key has a known mapping, preserve the original otherwise
+    return { ...k, label, display: label }
   })
 }
 
-let counter = 0
-export function createShortcutId(): string {
-  counter++
-  return `s_${Date.now().toString(36)}_${counter}`
+// ── Block Normalization ────────────────────────────────────────
+
+function normalizeKeyItem(raw: unknown): KeyItem {
+  if (raw && typeof raw === "object") {
+    const obj = raw as Record<string, unknown>
+    const listenKey = String(obj.listenKey ?? "")
+    const label = String(obj.label ?? listenKey)
+    const display = String(obj.display ?? label)
+    return { listenKey, label, display }
+  }
+  const s = String(raw ?? "")
+  return { listenKey: s, label: s, display: s }
 }
 
-export { createShortcutId as createBlockId }
+function normalizeShortcutKeys(
+  raw: unknown
+): KeyItem[] {
+  if (Array.isArray(raw)) return raw.map(normalizeKeyItem)
+  if (typeof raw === "string") {
+    return raw.split("+").map((k) => {
+      const t = k.trim().toLowerCase()
+      return { listenKey: t, label: t, display: t }
+    })
+  }
+  return []
+}
 
-// ── URL Export / Import ─────────────────────────────────────
+export function normalizeBlocks(raw: unknown): Block[] {
+  if (!Array.isArray(raw)) return []
+  return raw.map((item: unknown, idx: number) => {
+    if (!item || typeof item !== "object") {
+      return createDefaultBlock(idx)
+    }
+    const obj = item as Record<string, unknown>
+    const type = String(obj.type ?? "shortcut") as BlockType
+    const base = {
+      id: String(obj.id ?? createBlockId()),
+      type,
+      group: obj.group ? String(obj.group) : undefined,
+    }
 
+    switch (type) {
+      case "shortcut": {
+        const keys = normalizeShortcutKeys(obj.keys ?? obj.combo ?? "")
+        const raws = obj.alts
+        const alts = Array.isArray(raws)
+          ? raws.map(normalizeShortcutKeys)
+          : undefined
+        return {
+          ...base,
+          type: "shortcut" as const,
+          keys,
+          alts: alts && alts.length > 0 ? alts : undefined,
+          action: String(obj.action ?? ""),
+          description: String(obj.description ?? ""),
+          combo: String(obj.combo ?? ""),
+        }
+      }
+      case "section": {
+        return {
+          ...base,
+          type: "section" as const,
+          title: String(obj.title ?? ""),
+          description: obj.description ? String(obj.description) : undefined,
+        }
+      }
+      case "note": {
+        return {
+          ...base,
+          type: "note" as const,
+          variant: (obj.variant as NoteVariant) ?? ("info" as NoteVariant),
+          content: String(obj.content ?? ""),
+        }
+      }
+      case "code": {
+        return {
+          ...base,
+          type: "code" as const,
+          language: String(obj.language ?? obj.lang ?? "code"),
+          code: String(obj.code ?? ""),
+        }
+      }
+      default:
+        return createDefaultBlock(idx)
+    }
+  })
+}
+
+function createDefaultBlock(idx: number): Block {
+  return {
+    id: createBlockId(),
+    type: "shortcut",
+    keys: [],
+    action: `Shortcut ${idx + 1}`,
+    description: "",
+    combo: "",
+  }
+}
+
+// ── ID Generation ──────────────────────────────────────────────
+
+let _idCounter = 0
+
+export function createBlockId(): string {
+  _idCounter++
+  const ts = Date.now().toString(36)
+  const rand = Math.random().toString(36).slice(2, 6)
+  return `${ts}-${rand}-${_idCounter}`
+}
+
+// ── Export / Import (text format) ──────────────────────────────
+
+/**
+ * Format: `Shortcut Keys, Action Name`
+ * Example: `⌘K, Open Command Palette`
+ */
 export function exportShortcutsAsText(shortcuts: Shortcut[]): string {
   return shortcuts
     .map((s) => {
-      const combos = [s.keys, ...(s.alts || [])]
-        .map((c) => c.join("+"))
-        .join(" ")
-      const parts = [combos, s.action, s.description]
-      if (s.group) parts.push(s.group)
-      return parts.join(" | ")
+      const keysStr = s.keys.map((k) => k.display || k.label).join("+")
+      return `${keysStr}, ${s.action}`
     })
     .join("\n")
 }
 
-export function parseImportText(text: string): Omit<Shortcut, "id">[] {
+/**
+ * Parse text format: `Key Combo, Action Name`
+ * Handles lines with comma separator.
+ */
+export function parseImportText(
+  text: string
+): { keys: KeyItem[]; action: string; combo: string }[] {
   return text
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean)
     .map((line) => {
-      const parts = line.split("|").map((p) => p.trim())
-      const keysPart = parts[0] || ""
-      const tokens = keysPart.split(" ").filter(Boolean)
-      const combos: string[][] = []
-      tokens.forEach((token, idx) => {
-        if (idx === 0) {
-          combos.push(
-            token
-              .toLowerCase()
-              .split("+")
-              .map((s) => s.trim())
-              .filter(Boolean)
-          )
-        } else if (token.includes("+")) {
-          combos.push(
-            token
-              .toLowerCase()
-              .split("+")
-              .map((s) => s.trim())
-              .filter(Boolean)
-          )
-        } else {
-          // Suffix-only: take base prefix (all but last key) + this key
-          const prefix = combos[0].slice(0, -1)
-          combos.push([...prefix, token.toLowerCase()])
-        }
-      })
+      // Split on first comma
+      const commaIdx = line.indexOf(",")
+      if (commaIdx === -1) return null
+
+      const keyPart = line.slice(0, commaIdx).trim()
+      const action = line.slice(commaIdx + 1).trim()
+      if (!keyPart || !action) return null
+
+      const tokens = keyPart.split("+").map((k) => k.trim().toLowerCase())
+      const keys = tokens.map((t) => ({
+        listenKey: t,
+        label: t,
+        display: t,
+      }))
+
       return {
-        type: "shortcut" as const,
-        keys: combos[0] || [],
-        alts: combos.length > 1 ? combos.slice(1) : undefined,
-        action: parts[1] || "",
-        description: parts[2] || "",
-        group: parts[3] || undefined,
+        keys,
+        action,
+        combo: tokens.join("+"),
       }
     })
-    .filter((s) => s.keys.length > 0 && s.action)
+    .filter((x): x is NonNullable<typeof x> => x !== null)
 }

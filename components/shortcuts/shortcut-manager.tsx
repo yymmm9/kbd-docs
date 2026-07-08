@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from "react"
 import { useQueryState } from "nuqs"
 import { Kbd } from "@/components/ui/kbd"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
 import { SectionCard } from "@/components/cards/section-card"
 import { NoteCard } from "@/components/cards/note-card"
@@ -11,6 +12,7 @@ import {
   cn,
   type Block,
   type BlockType,
+  type KeyItem,
   type NoteVariant,
   type Shortcut,
   type SectionBlock,
@@ -27,25 +29,23 @@ import {
 
 function useGlobalKeyTrap(active: boolean, onTrigger?: () => void) {
   const pressedRef = useRef(new Set<string>())
+  const activeRef = useRef(active)
+  activeRef.current = active
   const [, forceRender] = useState(0)
 
   useEffect(() => {
-    if (!active) {
-      pressedRef.current.clear()
-      forceRender((n) => n + 1)
-      return
-    }
-
     function onKeyDown(e: KeyboardEvent) {
-      // Don't prevent default when typing in input/textarea
-      const target = e.target as HTMLElement
-      const isInput = target.isContentEditable ||
-        target.tagName === "INPUT" ||
-        target.tagName === "TEXTAREA" ||
-        target.tagName === "SELECT"
-      if (!isInput) {
-        e.preventDefault()
-        e.stopPropagation()
+      if (activeRef.current) {
+        // Don't prevent default when typing in input/textarea
+        const target = e.target as HTMLElement
+        const isInput = target.isContentEditable ||
+          target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT"
+        if (!isInput) {
+          e.preventDefault()
+          e.stopPropagation()
+        }
       }
       const key = e.key.toLowerCase()
       if (!pressedRef.current.has(key)) {
@@ -70,12 +70,14 @@ function useGlobalKeyTrap(active: boolean, onTrigger?: () => void) {
     }
 
     function onKeyPress(e: KeyboardEvent) {
-      const target = e.target as HTMLElement
-      const isInput = target.isContentEditable ||
-        target.tagName === "INPUT" ||
-        target.tagName === "TEXTAREA" ||
-        target.tagName === "SELECT"
-      if (!isInput) e.preventDefault()
+      if (activeRef.current) {
+        const target = e.target as HTMLElement
+        const isInput = target.isContentEditable ||
+          target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT"
+        if (!isInput) e.preventDefault()
+      }
     }
 
     window.addEventListener("keydown", onKeyDown, { capture: true })
@@ -89,7 +91,7 @@ function useGlobalKeyTrap(active: boolean, onTrigger?: () => void) {
       window.removeEventListener("blur", onBlur)
       window.removeEventListener("keypress", onKeyPress, { capture: true })
     }
-  }, [active])
+  }, [])
 
   return pressedRef.current
 }
@@ -164,11 +166,39 @@ export function ShortcutManager() {
   const [viewMode, setViewMode] = useState<"list" | "grid">("grid")
   const [renamingGroup, setRenamingGroup] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState("")
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState("")
 
   const isMac = useMemo(() => {
     if (typeof navigator === "undefined") return true
     return /mac|darwin/i.test(navigator.platform)
   }, [])
+
+  const filteredBlocks = useMemo(() => {
+    if (!searchQuery.trim()) return blocks
+    const q = searchQuery.toLowerCase()
+    return blocks.filter((b) => {
+      switch (b.type) {
+        case "shortcut":
+          return b.action.toLowerCase().includes(q) ||
+            (b.description || "").toLowerCase().includes(q) ||
+            (b.group || "").toLowerCase().includes(q)
+        case "section":
+          return b.title.toLowerCase().includes(q) ||
+            (b.description || "").toLowerCase().includes(q) ||
+            (b.group || "").toLowerCase().includes(q)
+        case "note":
+          return b.content.toLowerCase().includes(q) ||
+            (b.group || "").toLowerCase().includes(q)
+        case "code":
+          return b.code.toLowerCase().includes(q) ||
+            b.language.toLowerCase().includes(q) ||
+            (b.group || "").toLowerCase().includes(q)
+        default:
+          return false
+      }
+    })
+  }, [blocks, searchQuery])
 
   // ── Page metadata (custom title / description / editing mode) ──
 
@@ -218,24 +248,42 @@ export function ShortcutManager() {
     return Array.from(groups).sort()
   }, [blocks])
 
+  // Close block menu on click outside
+  useEffect(() => {
+    if (!menuOpenId) return
+    const handler = (e: MouseEvent) => {
+      const el = e.target as HTMLElement
+      if (!el.closest("[data-block-menu]")) {
+        setMenuOpenId(null)
+      }
+    }
+    const id = setTimeout(() => document.addEventListener("mousedown", handler), 0)
+    return () => {
+      clearTimeout(id)
+      document.removeEventListener("mousedown", handler)
+    }
+  }, [menuOpenId])
+
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const pressedKeys = useGlobalKeyTrap(testMode)
 
   // ── helpers ──
 
-  const parseKeys = useCallback((raw: string) => {
+  const parseKeys = useCallback((raw: string): KeyItem[][] => {
+    const toK = (s: string) => ({ listenKey: s, label: s, display: s })
     const tokens = raw.split(" ").filter(Boolean)
     if (tokens.length === 0) return []
 
     // First token is the base combo
-    const combos: string[][] = []
+    const combos: KeyItem[][] = []
     combos.push(
       tokens[0]
         .toLowerCase()
         .split("+")
         .map((s) => s.trim())
         .filter(Boolean)
+        .map(toK)
     )
 
     // Remaining tokens: if they contain "+" use as full combo,
@@ -248,11 +296,11 @@ export function ShortcutManager() {
             .split("+")
             .map((s) => s.trim())
             .filter(Boolean)
+            .map(toK)
         )
       } else {
-        // Suffix-only: take base prefix (all but last key) + this key
-        const prefix = combos[0].slice(0, -1)
-        combos.push([...prefix, tokens[i].toLowerCase()])
+        // Suffix-only: standalone single key
+        combos.push([{ listenKey: tokens[i].toLowerCase(), label: tokens[i].toLowerCase(), display: tokens[i].toLowerCase() }])
       }
     }
 
@@ -282,7 +330,7 @@ export function ShortcutManager() {
       switch (block.type) {
         case "shortcut": {
           const combos = [block.keys, ...(block.alts || [])]
-            .map((c) => c.join("+"))
+            .map((c) => c.map((k) => k.listenKey).join("+"))
             .join(" ")
           setKeysInput(combos)
           setActionInput(block.action)
@@ -325,6 +373,7 @@ export function ShortcutManager() {
           keys, alts, group,
           action: actionInput.trim(),
           description: descriptionInput.trim(),
+          combo: keys.map(k => k.listenKey).join("+"),
         }
         break
       }
@@ -429,7 +478,7 @@ export function ShortcutManager() {
         } catch {
           const parsed = parseImportText(text)
           if (parsed.length > 0) {
-            const imported = parsed.map((s) => ({ ...s, type: "shortcut" as const, id: createBlockId() }))
+            const imported = parsed.map((s) => ({ ...s, type: "shortcut" as const, id: createBlockId(), description: "" }))
             setBlocks([...blocks, ...imported])
           }
         }
@@ -459,7 +508,7 @@ export function ShortcutManager() {
 
     const parsed = parseImportText(importText)
     if (parsed.length > 0) {
-      const imported = parsed.map((s) => ({ ...s, type: "shortcut" as const, id: createBlockId() }))
+      const imported = parsed.map((s) => ({ ...s, type: "shortcut" as const, id: createBlockId(), description: "" }))
       setBlocks([...blocks, ...imported])
       setImportText("")
       setShowImport(false)
@@ -535,23 +584,28 @@ export function ShortcutManager() {
         <div className="mx-auto max-w-4xl px-6 py-12 sm:px-8">
           <div className="flex items-start justify-between gap-6">
             <div className="flex-1 min-w-0">
-              {editing ? (
-                <input
-                  type="text"
-                  value={pageTitle}
-                  onChange={(e) => setPageTitle(e.target.value)}
-                  placeholder="Page Title"
-                  className={cn(
-                    "w-full bg-transparent border-none outline-none",
-                    "text-3xl font-bold tracking-tight text-foreground sm:text-4xl md:text-5xl",
-                    "placeholder:text-muted-foreground/30"
-                  )}
-                />
-              ) : (
-                <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl md:text-5xl">
-                  {pageTitle}
-                </h1>
-              )}
+              <input
+                type="text"
+                value={pageTitle}
+                onChange={(e) => setPageTitle(e.target.value)}
+                placeholder="Page Title"
+                className={cn(
+                  "w-full bg-transparent border-none outline-none",
+                  "text-3xl font-bold tracking-tight text-foreground sm:text-4xl md:text-5xl",
+                  "placeholder:text-muted-foreground/30"
+                )}
+              />
+              <input
+                type="text"
+                value={pageDesc}
+                onChange={(e) => setPageDesc(e.target.value)}
+                placeholder="Add a description for visitors..."
+                className={cn(
+                  "w-full bg-transparent border-none outline-none mt-2",
+                  "text-base text-muted-foreground/70",
+                  "placeholder:text-muted-foreground/30"
+                )}
+              />
             </div>
             <div className="flex items-center gap-2 shrink-0">
               {blocks.length > 0 && (
@@ -645,20 +699,19 @@ export function ShortcutManager() {
                 <label className="block text-sm font-medium text-foreground mb-1.5">
                   Type
                 </label>
-                <select
-                  value={blockType}
-                  onChange={(e) => setBlockType(e.target.value as BlockType)}
-                  className={cn(
-                    "w-full h-12 rounded-xl border border-border/60 bg-muted/30 px-4 text-base",
-                    "focus:outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/20",
-                    "transition-all duration-150"
-                  )}
+                <ToggleGroup
+                  value={[blockType]}
+                  onValueChange={(val) => {
+                    if (val.length > 0) setBlockType(val[0] as BlockType)
+                  }}
+                  variant="outline"
+                  size="sm"
                 >
-                  <option value="shortcut">Shortcut</option>
-                  <option value="section">Section</option>
-                  <option value="note">Note</option>
-                  <option value="code">Code</option>
-                </select>
+                  <ToggleGroupItem value="shortcut">Shortcut</ToggleGroupItem>
+                  <ToggleGroupItem value="section">Section</ToggleGroupItem>
+                  <ToggleGroupItem value="note">Note</ToggleGroupItem>
+                  <ToggleGroupItem value="code">Code</ToggleGroupItem>
+                </ToggleGroup>
               </div>
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1.5">
@@ -731,7 +784,7 @@ export function ShortcutManager() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1.5">
-                    Action
+                    Title
                   </label>
                   <input
                     type="text"
@@ -943,7 +996,7 @@ export function ShortcutManager() {
               Blocks
               {blocks.length > 0 && (
                 <span className="ml-2 text-muted-foreground font-normal">
-                  ({blocks.length})
+                  {searchQuery.trim() ? `${filteredBlocks.length} of ${blocks.length}` : `(${blocks.length})`}
                 </span>
               )}
             </h2>
@@ -1049,6 +1102,31 @@ export function ShortcutManager() {
               )}
             </div>
           </div>
+
+          {/* Search */}
+          {blocks.length > 0 && (
+            <div className="relative mb-4">
+              <svg
+                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground/40 pointer-events-none"
+                width="15" height="15" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+              >
+                <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
+              </svg>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search shortcuts, sections, notes..."
+                className={cn(
+                  "w-full h-10 rounded-xl border border-border/60 bg-muted/30 pl-9 pr-4 text-sm",
+                  "placeholder:text-muted-foreground/40",
+                  "focus:outline-none focus:border-primary/40 focus:ring-1 focus:ring-primary/20",
+                  "transition-all duration-150"
+                )}
+              />
+            </div>
+          )}
 
           {/* Import Panel */}
           {showImport && (
@@ -1164,13 +1242,42 @@ win+shift+arrowLeft | Move window left | Snap to left half`}</pre>
             </div>
           )}
 
+          {/* No search results */}
+          {blocks.length > 0 && filteredBlocks.length === 0 && (
+            <div className="rounded-xl border border-dashed border-border/40 bg-muted/20 p-12 text-center">
+              <svg
+                width="32"
+                height="32"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="mx-auto mb-3 text-muted-foreground/30"
+              >
+                <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
+              </svg>
+              <p className="text-sm text-muted-foreground/50">
+                No blocks match <span className="font-medium text-foreground/60">&ldquo;{searchQuery}&rdquo;</span>
+              </p>
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="mt-2 text-xs text-muted-foreground/40 hover:text-foreground transition-colors duration-150 underline underline-offset-2"
+              >
+                Clear search
+              </button>
+            </div>
+          )}
+
           {/* Blocks — grouped */}
-          {blocks.length > 0 && (
+          {filteredBlocks.length > 0 && (
             <>
               {(() => {
                 const groupOrder: string[] = []
                 const grouped: Record<string, Block[]> = {}
-                blocks.forEach((b) => {
+                filteredBlocks.forEach((b) => {
                   const g = b.group || "Ungrouped"
                   if (!grouped[g]) {
                     grouped[g] = []
@@ -1237,8 +1344,11 @@ win+shift+arrowLeft | Move window left | Snap to left half`}</pre>
                           testMode={testMode}
                           viewMode={viewMode}
                           isMac={isMac}
+                          editing={editing}
                           onEdit={startEdit}
                           onRemove={removeBlock}
+                          menuOpenId={menuOpenId}
+                          onToggleMenu={setMenuOpenId}
                         />
                       ))}
                     </div>
@@ -1251,22 +1361,7 @@ win+shift+arrowLeft | Move window left | Snap to left half`}</pre>
       </main>
 
       <footer className="border-t border-border/60 mt-24">
-        <div className="mx-auto max-w-4xl px-6 py-8 sm:px-8 text-center">
-          {editing ? (
-            <input
-              type="text"
-              value={pageDesc}
-              onChange={(e) => setPageDesc(e.target.value)}
-              placeholder="Add a description for visitors..."
-              className="w-full max-w-xl mx-auto bg-transparent border-none outline-none text-center text-sm text-muted-foreground placeholder:text-muted-foreground/30"
-            />
-          ) : pageDesc ? (
-            <p className="text-sm text-muted-foreground max-w-xl mx-auto">{pageDesc}</p>
-          ) : null}
-          <p className="text-xs text-muted-foreground/50 mt-4">
-            Shortcut Cheatsheet &mdash; Built with shadcn/ui &amp; Tailwind CSS
-          </p>
-        </div>
+        <div className="mx-auto max-w-4xl px-6 py-8 sm:px-8 text-center" />
       </footer>
     </div>
   )
@@ -1280,16 +1375,22 @@ function BlockCard({
   testMode,
   viewMode,
   isMac,
+  editing,
   onEdit,
   onRemove,
+  menuOpenId,
+  onToggleMenu,
 }: {
   block: Block
   pressedKeys: Set<string>
   testMode: boolean
   viewMode: "list" | "grid"
   isMac: boolean
+  editing: boolean
   onEdit: (block: Block) => void
   onRemove: (id: string) => void
+  menuOpenId: string | null
+  onToggleMenu: (id: string | null) => void
 }) {
   switch (block.type) {
     case "shortcut":
@@ -1300,43 +1401,31 @@ function BlockCard({
           testMode={testMode}
           viewMode={viewMode}
           isMac={isMac}
+          editing={editing}
           onEdit={onEdit}
           onRemove={onRemove}
+          menuOpenId={menuOpenId}
+          onToggleMenu={onToggleMenu}
         />
       )
     case "section":
       return (
-        <div className="group relative">
-          <div className="absolute right-0 top-0 z-10 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-150">
-            <button type="button" onClick={() => onEdit(block)} className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground/40 hover:text-foreground hover:bg-muted/60 transition-all duration-150">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /></svg>
-            </button>
-            <button type="button" onClick={() => onRemove(block.id)} className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-all duration-150 text-base">×</button>
-          </div>
+        <div className="relative">
+          {editing && <BlockMenu blockId={block.id} menuOpenId={menuOpenId} onToggleMenu={onToggleMenu} onEdit={() => onEdit(block)} onRemove={() => onRemove(block.id)} />}
           <SectionCard title={block.title} description={block.description} />
         </div>
       )
     case "note":
       return (
-        <div className="group relative">
-          <div className="absolute right-3 top-3 z-10 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-150">
-            <button type="button" onClick={() => onEdit(block)} className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground/40 hover:text-foreground hover:bg-muted/60 transition-all duration-150">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /></svg>
-            </button>
-            <button type="button" onClick={() => onRemove(block.id)} className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-all duration-150 text-base">×</button>
-          </div>
+        <div className="relative">
+          {editing && <BlockMenu blockId={block.id} menuOpenId={menuOpenId} onToggleMenu={onToggleMenu} onEdit={() => onEdit(block)} onRemove={() => onRemove(block.id)} />}
           <NoteCard variant={block.variant} content={block.content} />
         </div>
       )
     case "code":
       return (
-        <div className="group relative">
-          <div className="absolute right-3 top-3 z-10 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-150">
-            <button type="button" onClick={() => onEdit(block)} className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground/40 hover:text-foreground hover:bg-muted/60 transition-all duration-150">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /></svg>
-            </button>
-            <button type="button" onClick={() => onRemove(block.id)} className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-all duration-150 text-base">×</button>
-          </div>
+        <div className="relative">
+          {editing && <BlockMenu blockId={block.id} menuOpenId={menuOpenId} onToggleMenu={onToggleMenu} onEdit={() => onEdit(block)} onRemove={() => onRemove(block.id)} />}
           <CodeCard language={block.language} code={block.code} />
         </div>
       )
@@ -1351,19 +1440,25 @@ function ShortcutCard({
   testMode,
   viewMode,
   isMac,
+  editing,
   onEdit,
   onRemove,
+  menuOpenId,
+  onToggleMenu,
 }: {
   shortcut: Shortcut
   pressedKeys: Set<string>
   testMode: boolean
   viewMode: "list" | "grid"
   isMac: boolean
+  editing: boolean
   onEdit: (shortcut: Shortcut) => void
   onRemove: (id: string) => void
+  menuOpenId: string | null
+  onToggleMenu: (id: string | null) => void
 }) {
   // Memoize all combos (primary + alts)
-  const combosRef = useRef<string[][] | null>(null)
+  const combosRef = useRef<KeyItem[][] | null>(null)
   if (combosRef.current === null) {
     combosRef.current = [shortcut.keys, ...(shortcut.alts || [])]
   }
@@ -1373,68 +1468,52 @@ function ShortcutCard({
   )
   const matched = useAnyComboMatch(normalizedCombos, pressedKeys)
 
-  // Build rendered combo chunks: each is either a Kbd or an "or" span
+  // Build rendered combo chunks: first 2 + "N more" badge for 3+
   const comboElements = useMemo(() => {
+    const combos = combosRef.current!
     const elements: React.ReactNode[] = []
-    combosRef.current!.forEach((combo, i) => {
-      if (i > 0) {
+    const maxVisible = 2
+    combos.forEach((combo, i) => {
+      if (i > 0 && i <= maxVisible) {
         elements.push(
           <span key={`or-${i}`} className="text-muted-foreground/40 text-sm font-medium mx-1 select-none">
             or
           </span>
         )
       }
-      elements.push(
-        <Kbd key={`combo-${i}`} keys={combo} pressedKeys={testMode ? pressedKeys : undefined} isMac={isMac} />
-      )
+      if (i < maxVisible) {
+        elements.push(
+          <Kbd key={`combo-${i}`} keys={combo} pressedKeys={pressedKeys} isMac={isMac} />
+        )
+      }
     })
+    if (combos.length > maxVisible) {
+      elements.push(
+        <span key="or-more" className="text-muted-foreground/40 text-sm font-medium mx-1 select-none">
+          or
+        </span>
+      )
+      elements.push(
+        <span key="more-badge" className="inline-flex items-center h-7 px-3 rounded-lg text-xs font-semibold text-muted-foreground/60 bg-muted/40 border border-border/40 select-none">
+          {combos.length - maxVisible} more
+        </span>
+      )
+    }
     return elements
-  }, [testMode, pressedKeys, isMac])
+  }, [pressedKeys, isMac])
 
   return (
     <div
       className={cn(
         "group relative rounded-xl border bg-card transition-all duration-150",
-        testMode && matched
+        matched
           ? "border-primary/40 bg-primary/[0.04] shadow-[0_0_0_1px_hsl(var(--primary)/0.15),0_4px_20px_rgba(124,92,252,0.08)]"
           : "border-border/60 shadow-ring hover:shadow-ring-lg",
         viewMode === "list" ? "flex items-start gap-6 p-6" : "flex flex-col gap-4 p-6"
       )}
     >
-      {/* Top-right actions — always visible on touch, hover on desktop */}
-      <div
-        className={cn(
-          "flex items-center gap-1",
-          viewMode === "list"
-            ? "absolute right-4 top-4 opacity-0 group-hover:opacity-100 transition-all duration-150"
-            : "absolute right-3 top-3"
-        )}
-      >
-        <button
-          type="button"
-          onClick={() => onEdit(shortcut)}
-          className={cn(
-            "flex h-7 w-7 items-center justify-center rounded-md",
-            "text-muted-foreground/40 hover:text-foreground hover:bg-muted/60",
-            "transition-all duration-150"
-          )}
-        >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-          </svg>
-        </button>
-        <button
-          type="button"
-          onClick={() => onRemove(shortcut.id)}
-          className={cn(
-            "flex h-7 w-7 items-center justify-center rounded-md",
-            "text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10",
-            "transition-all duration-150 text-base"
-          )}
-        >
-          ×
-        </button>
-      </div>
+      {/* Actions — menu button with dropdown */}
+      {editing && <BlockMenu blockId={shortcut.id} menuOpenId={menuOpenId} onToggleMenu={onToggleMenu} onEdit={() => onEdit(shortcut)} onRemove={() => onRemove(shortcut.id)} />}
 
       {/* Keys */}
       <div className={cn("flex flex-wrap items-center gap-1", viewMode === "grid" ? "" : "flex-shrink-0 pt-0.5")}>
@@ -1452,6 +1531,57 @@ function ShortcutCard({
           </p>
         )}
       </div>
+    </div>
+  )
+}
+
+// ── Block Menu (⋮ button + Edit/Delete dropdown) ─────────────
+
+function BlockMenu({
+  blockId,
+  menuOpenId,
+  onToggleMenu,
+  onEdit,
+  onRemove,
+}: {
+  blockId: string
+  menuOpenId: string | null
+  onToggleMenu: (id: string | null) => void
+  onEdit: () => void
+  onRemove: () => void
+}) {
+  const isOpen = menuOpenId === blockId
+
+  return (
+    <div className="absolute right-3 top-3 z-20" data-block-menu>
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); onToggleMenu(isOpen ? null : blockId) }}
+        className="flex h-8 w-8 items-center justify-center rounded-lg hover:bg-muted/60 text-muted-foreground/60 hover:text-foreground transition-all duration-150"
+        aria-label="Block actions"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="5" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="12" cy="19" r="1" />
+        </svg>
+      </button>
+      {isOpen && (
+        <div className="absolute right-0 top-full mt-1 z-30 min-w-[120px] rounded-lg border border-border/60 bg-card p-1 shadow-ring-lg">
+          <button
+            type="button"
+            onClick={() => { onEdit(); onToggleMenu(null) }}
+            className="w-full text-left px-3 py-2 rounded-md text-sm text-foreground hover:bg-muted transition-colors duration-100"
+          >
+            Edit
+          </button>
+          <button
+            type="button"
+            onClick={() => { onRemove(); onToggleMenu(null) }}
+            className="w-full text-left px-3 py-2 rounded-md text-sm text-destructive hover:bg-destructive/10 transition-colors duration-100"
+          >
+            Delete
+          </button>
+        </div>
+      )}
     </div>
   )
 }
