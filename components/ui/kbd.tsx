@@ -72,6 +72,7 @@ function Kbd({
       {normalized.map((key, i) => (
         <span key={i} className="inline-flex items-center gap-[3px]">
           <kbd
+            title={key.label}
             className={cn(
               "inline-flex h-12 min-w-[44px] items-center justify-center rounded-xl px-[13px]",
               "text-base font-semibold leading-none tracking-wide select-none",
@@ -84,7 +85,16 @@ function Kbd({
               ]
             )}
           >
-            {key.display}
+            {key.symbolKey === "win" ? (
+              <span className="flex flex-col items-center gap-[1px]">
+                <svg viewBox="0 0 16 16" fill="currentColor" className="size-[18px]">
+                  <path d="M0 2.792L6.528 1.944V8H0zM7.232 1.944L16 .84V8H7.232zM16 8.16l-.001 7.158L7.232 14.214V8.16zM6.528 14.214L0 13.368V8.16h6.528z" />
+                </svg>
+                <span className="text-[10px] font-medium opacity-50 leading-none">win</span>
+              </span>
+            ) : (
+              key.display
+            )}
           </kbd>
           {showSeparator && i < normalized.length - 1 && (
             <span className="text-muted-foreground/30 text-base font-semibold select-none leading-none">

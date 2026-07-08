@@ -3,18 +3,25 @@
 ## [Unreleased]
 
 ### Added
-- Platform detection (`isMac`): `cmd` key displays ⌘ on macOS, Ctrl on other platforms
-- `ctrl` key now displays ⌃ symbol (distinct from `cmd` on all platforms)
-- F1-F12 function keys added to key symbol map (display as "F1", "F2", etc.)
-- Group selector: dropdown populated from existing groups when adding/editing shortcuts
-- "+" button next to group selector to create a new group inline
-- Inline group rename: click any group header (including "Ungrouped") to rename it
-  - Renaming a group updates all shortcuts in that group
-  - Renaming "Ungrouped" assigns the new group name to all ungrouped shortcuts
+- **New block types**: Section (divider with title), Note (info/warning/tip/danger admonitions), Code block (syntax-labeled with copy button)
+- **Page metadata**: custom title (`?t=`) and description (`?d=`) for shared pages
+- **Editing mode**: `?edit=1` shows the form and controls; visitors see only the content
+- **Windows key SVG icon** with "win" label for win/windows/super keys
+- **Import guide**: expandable `<details>` panel with text/JSON format examples & tips for AI
+- **Group insertion-order**: groups display in the order their first block was added (instead of alphabetical)
+- `normalizeBlocks()` utility for backward-compatible URL loading (old shortcuts without `type` field default to Shortcut)
 
 ### Changed
-- `normalizeKeys()` accepts optional `isMac` parameter for platform-aware display
-- `Kbd` component accepts `isMac` prop and passes it through
+- **Header restructured**: Test mode toggle moved next to ThemeToggle, hero description moved to footer
+- **Group input**: always-text-input with dropdown combobox (removed toggle/select)
+- **Inline editor**: type selector + conditional fields for Section/Note/Code block editing
+- **Grid view is now the default** view mode
+- **Key combo preview**: 3+ alternatives show first 2 + "N more" badge instead of long "or or or" chain
+- **Edit/Remove buttons**: added to Section, Note, and Code cards on hover
+
+### Fixed
+- Windows/super keys now render with proper SVG icon instead of `⊞` Unicode symbol
+- Special keys display tooltip labels (`title` attribute) on each kbd element
 
 ## [2026-07-06]
 
