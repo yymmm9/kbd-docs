@@ -1190,33 +1190,7 @@ export function ShortcutManager() {
                   format
                 </span>
               </div>
-              <details className="mt-3 text-xs text-muted-foreground/60">
-                <summary className="cursor-pointer hover:text-foreground transition-colors duration-150 font-medium">
-                  Import Guide &mdash; copy for AI
-                </summary>
-                <div className="mt-2 space-y-2 leading-relaxed">
-                  <p><strong>Format 1 &mdash; Text</strong> (keys | action | description):</p>
-                  <pre className="bg-muted/40 rounded-lg p-3 font-mono text-[11px] text-foreground/80">
-{`cmd+K ctrl+K | Toggle palette | Open the command palette
-ctrl+S cmd+S | Save | Save changes
-win+shift+arrowLeft | Move window left | Snap to left half`}</pre>
-                  <p><strong>Format 2 &mdash; JSON</strong> (array of blocks):</p>
-                  <pre className="bg-muted/40 rounded-lg p-3 font-mono text-[11px] text-foreground/80">
-{`[
-  {"keys":["cmd","k"],"action":"Toggle palette","description":"Open the command palette","group":"General"},
-  {"type":"section","title":"Getting Started"},
-  {"type":"note","variant":"tip","content":"You can also use ctrl+K"},
-  {"type":"code","language":"javascript","code":"console.log(42)","group":"Dev"}
-]`}</pre>
-                  <p><strong>Tips:</strong></p>
-                  <ul className="list-disc pl-4 space-y-1">
-                    <li>Separate alternative combos with space: <code className="text-foreground/70">cmd+K ctrl+K</code></li>
-                    <li>Use <code className="text-foreground/70">+</code> between modifier and key within a combo</li>
-                    <li>Add optional <code className="text-foreground/70">group</code> field to organize blocks</li>
-                    <li>Old shortcuts without <code className="text-foreground/70">type</code> automatically become Shortcut blocks</li>
-                  </ul>
-                </div>
-              </details>
+              <CopyGuideButton />
             </div>
           )}
 
@@ -1583,5 +1557,50 @@ function BlockMenu({
         </div>
       )}
     </div>
+  )
+}
+
+const GUIDE_TEXT = `Format 1 — Text (keys | action | description):
+─────────────────────────────────────────
+cmd+K ctrl+K | Toggle palette | Open the command palette
+ctrl+S cmd+S | Save | Save changes
+win+shift+arrowLeft | Move window left | Snap to left half
+
+Format 2 — JSON (array of blocks):
+──────────────────────────────────
+[
+  {"keys":["cmd","k"],"action":"Toggle palette","description":"Open the command palette","group":"General"},
+  {"type":"section","title":"Getting Started"},
+  {"type":"note","variant":"tip","content":"You can also use ctrl+K"},
+  {"type":"code","language":"javascript","code":"console.log(42)","group":"Dev"}
+]
+
+Tips:
+- Separate alternative combos with space: cmd+K ctrl+K
+- Use + between modifier and key within a combo
+- Add optional group field to organize blocks
+- Old shortcuts without type automatically become Shortcut blocks`
+
+function CopyGuideButton() {
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(GUIDE_TEXT)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch {
+      // clipboard API not available
+    }
+  }, [])
+
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      className="mt-3 text-xs text-muted-foreground/60 hover:text-foreground transition-colors duration-150 font-medium"
+    >
+      {copied ? "Copied!" : "Import Guide — copy for AI"}
+    </button>
   )
 }
