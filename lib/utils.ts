@@ -54,6 +54,42 @@ const keySymbolMap: Record<string, { display: string; symbol: string }> = {
   f12: { display: "F12", symbol: "F12" },
 }
 
+// Human-readable labels for tooltip display
+const keyTooltipMap: Record<string, string> = {
+  cmd: "Command",
+  command: "Command",
+  meta: "Meta",
+  ctrl: "Control",
+  control: "Control",
+  alt: "Option",
+  option: "Option",
+  shift: "Shift",
+  win: "Windows",
+  windows: "Windows",
+  super: "Windows",
+  enter: "Enter",
+  return: "Return",
+  escape: "Escape",
+  esc: "Escape",
+  tab: "Tab",
+  space: "Space",
+  delete: "Delete",
+  backspace: "Backspace",
+  capslock: "Caps Lock",
+  pageup: "Page Up",
+  pagedown: "Page Down",
+  home: "Home",
+  end: "End",
+  up: "Arrow Up",
+  arrowup: "Arrow Up",
+  down: "Arrow Down",
+  arrowdown: "Arrow Down",
+  left: "Arrow Left",
+  arrowleft: "Arrow Left",
+  right: "Arrow Right",
+  arrowright: "Arrow Right",
+}
+
 // On macOS we show ⌘ for cmd; elsewhere show Ctrl (common convention)
 const CMD_DISPLAY_MAC = "⌘"
 const CMD_DISPLAY_NON_MAC = "Ctrl"
@@ -77,24 +113,37 @@ function listenKey(input: string): string {
 export function normalizeKeys(
   keys: KeyItem[],
   isMac?: boolean
-): { display: string; listenKey: string }[] {
+): { display: string; listenKey: string; label?: string; symbolKey?: string }[] {
   return keys.map((key) => {
     if (typeof key === "string") {
       const lower = key.toLowerCase()
       const mapped = keySymbolMap[lower]
       if (mapped) {
+        const isWin = lower === "win" || lower === "windows" || lower === "super"
         // Platform-aware display: cmd → ⌘ on Mac, Ctrl on non-Mac
         if ((lower === "cmd" || lower === "command") && isMac === false) {
-          return { display: CMD_DISPLAY_NON_MAC, listenKey: listenKey(lower) }
+          return { display: CMD_DISPLAY_NON_MAC, listenKey: listenKey(lower), label: "Command" }
         }
-        return { display: mapped.display, listenKey: listenKey(lower) }
+        return {
+          display: mapped.display,
+          listenKey: listenKey(lower),
+          label: keyTooltipMap[lower],
+          symbolKey: isWin ? "win" : undefined,
+        }
       }
       return {
         display: key.length === 1 ? key.toUpperCase() : key,
         listenKey: listenKey(lower),
+        label: keyTooltipMap[lower],
       }
     }
-    return { display: key.display, listenKey: listenKey(key.key) }
+    const lower = key.key.toLowerCase()
+    return {
+      display: key.display,
+      listenKey: listenKey(key.key),
+      label: keyTooltipMap[lower],
+      symbolKey: (lower === "win" || lower === "windows" || lower === "super") ? "win" : undefined,
+    }
   })
 }
 
@@ -108,13 +157,57 @@ export function formatKeysForDisplay(keys: KeyItem[]): string {
 
 export interface Shortcut {
   id: string
+  /** @default "shortcut" — omitted in old URL data for backward compat */
+  type?: "shortcut"
   keys: string[]
   action: string
   description: string
   /** Alternative key combos (space-separated in input) */
   alts?: string[][]
-  /** Group/category for organizing shortcuts */
+  /** Group/category for organizing blocks */
   group?: string
+}
+
+// ── Documentation Block Types ──────────────────────────────
+
+export type BlockType = "shortcut" | "section" | "note" | "code"
+
+export type NoteVariant = "info" | "warning" | "tip" | "danger"
+
+export interface SectionBlock {
+  id: string
+  type: "section"
+  title: string
+  description?: string
+  group?: string
+}
+
+export interface NoteBlock {
+  id: string
+  type: "note"
+  variant: NoteVariant
+  content: string
+  group?: string
+}
+
+export interface CodeBlock {
+  id: string
+  type: "code"
+  language: string
+  code: string
+  group?: string
+}
+
+export type Block = Shortcut | SectionBlock | NoteBlock | CodeBlock
+
+/** Normalize raw data from URL or import: old Shortcut[] → Block[] */
+export function normalizeBlocks(raw: unknown): Block[] {
+  if (!Array.isArray(raw)) return []
+  return raw.map((item: Record<string, unknown>) => {
+    if (item.type) return item as Block
+    // Old format — no type field, treat as shortcut
+    return { ...item, type: "shortcut" } as Shortcut
+  })
 }
 
 let counter = 0
@@ -122,6 +215,8 @@ export function createShortcutId(): string {
   counter++
   return `s_${Date.now().toString(36)}_${counter}`
 }
+
+export { createShortcutId as createBlockId }
 
 // ── URL Export / Import ─────────────────────────────────────
 
