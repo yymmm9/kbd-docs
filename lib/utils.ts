@@ -157,8 +157,7 @@ export function formatKeysForDisplay(keys: KeyItem[]): string {
 
 export interface Shortcut {
   id: string
-  /** @default "shortcut" — omitted in old URL data for backward compat */
-  type?: "shortcut"
+  type: "shortcut"
   keys: string[]
   action: string
   description: string
@@ -204,7 +203,7 @@ export type Block = Shortcut | SectionBlock | NoteBlock | CodeBlock
 export function normalizeBlocks(raw: unknown): Block[] {
   if (!Array.isArray(raw)) return []
   return raw.map((item: Record<string, unknown>) => {
-    if (item.type) return item as Block
+    if (item.type) return item as unknown as Block
     // Old format — no type field, treat as shortcut
     return { ...item, type: "shortcut" } as Shortcut
   })
@@ -267,6 +266,7 @@ export function parseImportText(text: string): Omit<Shortcut, "id">[] {
         }
       })
       return {
+        type: "shortcut" as const,
         keys: combos[0] || [],
         alts: combos.length > 1 ? combos.slice(1) : undefined,
         action: parts[1] || "",
