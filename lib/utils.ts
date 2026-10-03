@@ -69,8 +69,8 @@ const KEY_LABELS: Record<string, { mac: string; default: string }> = {
   alt: { mac: "⌥", default: "Alt" },
   option: { mac: "⌥", default: "Alt" },
   meta: { mac: "⌘", default: "Win" },
-  windows: { mac: "⌘", default: "Win" },
-  win: { mac: "⌘", default: "Win" },
+  cmd: { mac: "⌘", default: "Win" },
+  command: { mac: "⌘", default: "Win" },
   shift: { mac: "⇧", default: "Shift" },
   capslock: { mac: "⇪", default: "Caps" },
   enter: { mac: "↩", default: "Enter" },
@@ -81,19 +81,38 @@ const KEY_LABELS: Record<string, { mac: string; default: string }> = {
   escape: { mac: "⎋", default: "Esc" },
   esc: { mac: "⎋", default: "Esc" },
   space: { mac: "␣", default: "Space" },
-  up: { mac: "↑", default: "↑" },
-  down: { mac: "↓", default: "↓" },
-  left: { mac: "←", default: "←" },
-  right: { mac: "→", default: "→" },
   pageup: { mac: "⇞", default: "PgUp" },
   pagedown: { mac: "⇟", default: "PgDn" },
   home: { mac: "↖", default: "Home" },
   end: { mac: "↘", default: "End" },
 }
 
+const WIN_KEYS = new Set(["win", "windows", "super"])
+
+const ARROW_KEYS: Record<string, { symbolKey: string; glyph: string }> = {
+  up: { symbolKey: "arrowup", glyph: "↑" },
+  arrowup: { symbolKey: "arrowup", glyph: "↑" },
+  down: { symbolKey: "arrowdown", glyph: "↓" },
+  arrowdown: { symbolKey: "arrowdown", glyph: "↓" },
+  left: { symbolKey: "arrowleft", glyph: "←" },
+  arrowleft: { symbolKey: "arrowleft", glyph: "←" },
+  right: { symbolKey: "arrowright", glyph: "→" },
+  arrowright: { symbolKey: "arrowright", glyph: "→" },
+}
+
 export function normalizeKeys(keys: KeyItem[], isMac = true): KeyItem[] {
   return keys.map((k) => {
     const lower = k.listenKey.toLowerCase()
+    // `win`/`windows`/`super` mean the literal Windows key — always render the
+    // Windows logo. Platform modifier (⌘ on mac / Win elsewhere) is `meta`/`cmd`.
+    if (WIN_KEYS.has(lower)) {
+      return { ...k, label: "Win", display: "Win", symbolKey: "win" }
+    }
+    // Arrow keys render as SVG icons (symbolKey); glyph kept for text export
+    const arrow = ARROW_KEYS[lower]
+    if (arrow) {
+      return { ...k, label: arrow.glyph, display: arrow.glyph, symbolKey: arrow.symbolKey }
+    }
     const mapping = KEY_LABELS[lower]
     if (!mapping) return k
     const label = isMac ? mapping.mac : mapping.default

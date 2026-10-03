@@ -3,6 +3,13 @@
 import * as React from "react"
 import { cn, type KeyItem, normalizeKeys } from "@/lib/utils"
 
+const ARROW_ROTATION: Record<string, string> = {
+  arrowup: "",
+  arrowright: "rotate-90",
+  arrowdown: "rotate-180",
+  arrowleft: "-rotate-90",
+}
+
 interface KbdProps extends React.HTMLAttributes<HTMLSpanElement> {
   keys: KeyItem[]
   className?: string
@@ -74,8 +81,8 @@ function Kbd({
           <kbd
             title={key.label}
             className={cn(
-              "inline-flex h-12 min-w-[44px] items-center justify-center rounded-xl px-[13px]",
-              "text-base font-semibold leading-none tracking-wide select-none",
+              "inline-flex h-10 min-w-[36px] items-center justify-center rounded-lg px-[10px] sm:h-12 sm:min-w-[44px] sm:rounded-xl sm:px-[13px]",
+              "text-sm font-semibold leading-none tracking-wide select-none sm:text-base",
               "border border-border/50 bg-gradient-to-b from-muted/80 to-muted/30 text-muted-foreground",
               "shadow-[0_3px_0_0_hsl(var(--border)),0_2px_8px_0_rgba(0,0,0,0.1)]",
               "transition-all duration-100 ease-out will-change-transform",
@@ -87,11 +94,20 @@ function Kbd({
           >
             {key.symbolKey === "win" ? (
               <span className="flex flex-col items-center gap-[1px]">
-                <svg viewBox="0 0 16 16" fill="currentColor" className="size-[18px]">
+                <svg viewBox="0 0 16 16" fill="currentColor" className="size-[14px] sm:size-[18px]">
                   <path d="M0 2.792L6.528 1.944V8H0zM7.232 1.944L16 .84V8H7.232zM16 8.16l-.001 7.158L7.232 14.214V8.16zM6.528 14.214L0 13.368V8.16h6.528z" />
                 </svg>
                 <span className="text-[10px] font-medium opacity-50 leading-none">win</span>
               </span>
+            ) : key.symbolKey && key.symbolKey in ARROW_ROTATION ? (
+              <svg
+                viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                className={cn("size-4 sm:size-[18px]", ARROW_ROTATION[key.symbolKey])}
+              >
+                <line x1="12" y1="19" x2="12" y2="5" />
+                <polyline points="5 12 12 5 19 12" />
+              </svg>
             ) : (
               key.display
             )}
