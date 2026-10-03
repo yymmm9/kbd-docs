@@ -168,6 +168,7 @@ export function ShortcutManager() {
   const [renameValue, setRenameValue] = useState("")
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
 
   const isMac = useMemo(() => {
     if (typeof navigator === "undefined") return true
@@ -537,6 +538,15 @@ export function ShortcutManager() {
     },
     [renameValue, setBlocks]
   )
+
+  const toggleGroupCollapsed = useCallback((name: string) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev)
+      if (next.has(name)) next.delete(name)
+      else next.add(name)
+      return next
+    })
+  }, [])
 
   const handleInputKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") saveBlock()
@@ -1262,72 +1272,98 @@ export function ShortcutManager() {
                 // "Ungrouped" always last
                 const sortedGroups = groupOrder.filter((g) => g !== "Ungrouped").map((g) => [g, grouped[g]] as const)
                 if (grouped["Ungrouped"]) sortedGroups.push(["Ungrouped", grouped["Ungrouped"]])
-                return sortedGroups.map(([groupName, groupBlocks]) => (
-                  <div key={groupName} className="mb-8 last:mb-0">
-                    <div className="flex items-center gap-2 mb-4">
-                      {renamingGroup === groupName ? (
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="text"
-                            value={renameValue}
-                            onChange={(e) => setRenameValue(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") commitRename(groupName)
-                              if (e.key === "Escape") setRenamingGroup(null)
-                              e.stopPropagation()
-                            }}
-                            onBlur={() => commitRename(groupName)}
-                            autoFocus
-                            className={cn(
-                              "h-8 rounded-lg border border-primary/40 bg-muted/30 px-3 text-base font-semibold",
-                              "focus:outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/20",
-                              "transition-all duration-150"
-                            )}
-                          />
-                          <span className="text-xs text-muted-foreground/40">
-                            ↵ save &nbsp;⎋ cancel
-                          </span>
-                        </div>
-                      ) : (
-                        <h3
-                          className="text-base font-semibold text-foreground/80 cursor-pointer hover:text-foreground transition-colors duration-150"
-                          onClick={() => {
-                            setRenameValue(groupName)
-                            setRenamingGroup(groupName)
-                          }}
+                return sortedGroups.map(([groupName, groupBlocks]) => {
+                  const isCollapsed = collapsedGroups.has(groupName)
+                  return (
+                    <div key={groupName} className="mb-8 last:mb-0">
+                      <div className={cn("flex items-center gap-2", !isCollapsed && "mb-4")}>
+                        <button
+                          type="button"
+                          onClick={() => toggleGroupCollapsed(groupName)}
+                          aria-label={isCollapsed ? "Expand group" : "Collapse group"}
+                          className="flex items-center justify-center size-5 -ml-1 rounded text-muted-foreground/50 hover:text-foreground transition-colors duration-150"
                         >
-                          {groupName}
-                        </h3>
+                          <svg
+                            width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                            className={cn("transition-transform duration-150", isCollapsed && "-rotate-90")}
+                          >
+                            <polyline points="6 9 12 15 18 9" />
+                          </svg>
+                        </button>
+                        {renamingGroup === groupName ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={renameValue}
+                              onChange={(e) => setRenameValue(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") commitRename(groupName)
+                                if (e.key === "Escape") setRenamingGroup(null)
+                                e.stopPropagation()
+                              }}
+                              onBlur={() => commitRename(groupName)}
+                              autoFocus
+                              className={cn(
+                                "h-8 rounded-lg border border-primary/40 bg-muted/30 px-3 text-base font-semibold",
+                                "focus:outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/20",
+                                "transition-all duration-150"
+                              )}
+                            />
+                            <span className="text-xs text-muted-foreground/40">
+                              ↵ save &nbsp;⎋ cancel
+                            </span>
+                          </div>
+                        ) : (
+                          <h3
+                            className="text-base font-semibold text-foreground/80 cursor-pointer hover:text-foreground transition-colors duration-150"
+                            onClick={() => {
+                              if (!editing) {
+                                toggleGroupCollapsed(groupName)
+                                return
+                              }
+                              setRenameValue(groupName)
+                              setRenamingGroup(groupName)
+                            }}
+                          >
+                            {groupName}
+                          </h3>
+                        )}
+                        <span
+                          className="text-xs text-muted-foreground/50 font-medium px-2 py-0.5 rounded-full bg-muted/50 border border-border/40 cursor-pointer select-none"
+                          onClick={() => toggleGroupCollapsed(groupName)}
+                        >
+                          {groupBlocks.length}
+                        </span>
+                      </div>
+                      {!isCollapsed && (
+                        <div
+                          className={cn(
+                            viewMode === "list"
+                              ? "space-y-4"
+                              : "grid grid-cols-2 gap-3 sm:gap-4 md:gap-5"
+                          )}
+                        >
+                          {groupBlocks.map((block) => (
+                            <BlockCard
+                              key={block.id}
+                              block={block}
+                              pressedKeys={pressedKeys}
+                              testMode={testMode}
+                              viewMode={viewMode}
+                              isMac={isMac}
+                              editing={editing}
+                              onEdit={startEdit}
+                              onRemove={removeBlock}
+                              menuOpenId={menuOpenId}
+                              onToggleMenu={setMenuOpenId}
+                            />
+                          ))}
+                        </div>
                       )}
-                      <span className="text-xs text-muted-foreground/50 font-medium px-2 py-0.5 rounded-full bg-muted/50 border border-border/40">
-                        {groupBlocks.length}
-                      </span>
                     </div>
-                    <div
-                      className={cn(
-                        viewMode === "list"
-                          ? "space-y-4"
-                          : "grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-5"
-                      )}
-                    >
-                      {groupBlocks.map((block) => (
-                        <BlockCard
-                          key={block.id}
-                          block={block}
-                          pressedKeys={pressedKeys}
-                          testMode={testMode}
-                          viewMode={viewMode}
-                          isMac={isMac}
-                          editing={editing}
-                          onEdit={startEdit}
-                          onRemove={removeBlock}
-                          menuOpenId={menuOpenId}
-                          onToggleMenu={setMenuOpenId}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                ))
+                  )
+                })
               })()}
             </>
           )}
@@ -1384,7 +1420,7 @@ function BlockCard({
       )
     case "section":
       return (
-        <div className="relative">
+        <div className={cn("relative", viewMode === "grid" && "col-span-2")}>
           {editing && <BlockMenu blockId={block.id} menuOpenId={menuOpenId} onToggleMenu={onToggleMenu} onEdit={() => onEdit(block)} onRemove={() => onRemove(block.id)} />}
           <SectionCard title={block.title} description={block.description} />
         </div>
@@ -1483,7 +1519,7 @@ function ShortcutCard({
         matched
           ? "border-primary/40 bg-primary/[0.04] shadow-[0_0_0_1px_hsl(var(--primary)/0.15),0_4px_20px_rgba(124,92,252,0.08)]"
           : "border-border/60 shadow-ring hover:shadow-ring-lg",
-        viewMode === "list" ? "flex items-start gap-6 p-6" : "flex flex-col gap-4 p-6"
+        viewMode === "list" ? "flex items-start gap-6 p-6" : "flex flex-col gap-3 p-4 sm:gap-4 sm:p-6"
       )}
     >
       {/* Actions — menu button with dropdown */}
@@ -1496,7 +1532,7 @@ function ShortcutCard({
 
       {/* Text */}
       <div className={cn("flex-1 min-w-0", viewMode === "grid" && "pr-8")}>
-        <h3 className="text-lg font-semibold text-foreground leading-snug">
+        <h3 className="text-base font-semibold text-foreground leading-snug sm:text-lg">
           {shortcut.action}
         </h3>
         {shortcut.description && (

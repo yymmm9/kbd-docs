@@ -9,6 +9,8 @@
 - **Windows key SVG icon** with "win" label for win/windows/super keys
 - **Import guide**: expandable `<details>` panel with text/JSON format examples & tips for AI
 - **Group insertion-order**: groups display in the order their first block was added (instead of alphabetical)
+- **Group 展开/收起**: 每组头部新增 chevron 按钮折叠整块；浏览模式点组名/数量徽章也可切换
+- **方向键 SVG icon**: `up/down/left/right` 与 `arrow*` 一律渲染为箭头 icon（`symbolKey` 复用 win logo 机制），文本导出仍用 ↑↓←→
 - **Search**: filter shortcuts/sections/notes/code blocks by title or description
 - **BlockMenu**: edit/delete moved to single `⋮` dropdown, gated by `editing` mode prop
 - `normalizeBlocks()` utility for backward-compatible URL loading
@@ -20,6 +22,8 @@
 - **Inline editor**: type selector → shadcn/ui ToggleGroup (replaced `<select>`)
 - **Form field label**: "Action" → "Title"
 - **Grid view is now the default** view mode
+- **Grid 移动端 2 列**: 手机也保持两列，卡片 padding/字号、kbd 尺寸在小屏收窄；section 分隔块在 grid 中横跨两列
+- **Group 重命名仅在编辑模式触发**: 浏览模式点组名改为折叠，修复访客可改名的 bug
 - **Key combo preview**: 3+ alternatives show first 2 + "N more" badge instead of long "or or or" chain
 - **Edit/Remove buttons**: added to Section, Note, and Code cards on hover
 - **Key listening**: `useGlobalKeyTrap` 始终监听按键（不仅限 test mode），`preventDefault` 仅 test mode 生效
@@ -27,6 +31,8 @@
 - **原来硬编码 "Shortcut Cheatsheet"** → 输入框始终可编辑标题和描述
 
 ### Fixed
+- **`win` 键在 Mac 上显示为 ⌘**: `win`/`windows`/`super` 现在始终渲染 Windows logo（启用 `symbolKey`），平台修饰键改用 `cmd`/`command`/`meta` 表示（Mac ⌘ / 其他 Win）
+- **`arrow*` 键无映射**: `arrowup`/`arrowdown`/`arrowleft`/`arrowright` 补入 `KEY_LABELS`，渲染为 ↑↓←→ 而非原始文本
 - Windows/super keys now render with proper SVG icon instead of `⊞` Unicode symbol
 - Special keys display tooltip labels (`title` attribute) on each kbd element
 - **Missing `</div>`** in Vercel SWC build (Unexpected token `div`)
