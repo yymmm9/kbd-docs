@@ -11,7 +11,12 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Shortcut Cheatsheet — Define & Share Keyboard Shortcuts",
   description:
-    "Define keyboard shortcuts with names and descriptions. Export and share via URL, JSON, or plain text.",
+    "Define keyboard shortcuts with names and descriptions. Export and share via URL, JSON, or plain text. AI agents: see /llms.txt for the URL schema.",
+  alternates: {
+    types: {
+      "text/markdown": "/llms.txt",
+    },
+  },
 }
 
 export default function RootLayout({

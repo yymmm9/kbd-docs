@@ -1,0 +1,119 @@
+# Shortcut Cheatsheet (shortcut.y-m.dev)
+
+> A free, backend-less tool that renders beautiful keyboard-shortcut cheatsheet
+> pages. All content is serialized into the URL — you do not need an account,
+> an API key, or any write access. To "use" this tool as an AI, simply build a
+> URL and give it to the user. Opening the URL IS the result.
+
+## How to generate a page
+
+```
+https://shortcut.y-m.dev/?s=<encodeURIComponent(JSON array of blocks)>&t=<title>&d=<description>
+```
+
+| param | meaning |
+|---|---|
+| `s` | JSON array of content blocks (required for a read-only share page) |
+| `t` | page title |
+| `d` | page description |
+| `edit` | `edit=1` opens the editor UI; OMIT it for share/visitor pages |
+
+Minimal generator (JS):
+
+```js
+const url = `https://shortcut.y-m.dev/?s=${encodeURIComponent(JSON.stringify(blocks))}&t=${encodeURIComponent(title)}`
+```
+
+## Block schema
+
+Blocks render top-to-bottom in array order, then grouped by `group`
+(insertion order; ungrouped blocks go last under "Ungrouped"). Groups are
+collapsible in the UI.
+
+### shortcut (default type — `type` may be omitted)
+
+```json
+{"type":"shortcut","keys":"cmd+k","alts":[["ctrl","k"]],"action":"Open palette","description":"…","group":"General"}
+```
+
+- `keys` — string `"a+b+c"` (preferred, terse) OR array of
+  `{"listenKey":"cmd","label":"cmd","display":"cmd"}` objects
+- `alts` — alternative combos, array of key arrays (optional)
+- `action` — row title (required)
+- `description`, `group` — optional
+
+### section — visual divider inside a group
+
+```json
+{"type":"section","title":"Navigation","description":"…","group":"…"}
+```
+
+### note — callout box
+
+```json
+{"type":"note","variant":"info","content":"…","group":"…"}
+```
+
+`variant`: `info | warning | tip | danger`
+
+### code — code block with copy button
+
+```json
+{"type":"code","language":"javascript","code":"console.log(42)","group":"…"}
+```
+
+## Key vocabulary (`listenKey`, case-insensitive; unknown strings render as-is)
+
+| you write | renders on mac | renders elsewhere |
+|---|---|---|
+| `win`, `windows`, `super` | Windows logo icon + "win" caption | same |
+| `shift` | ⇧ icon + "shift" caption | same |
+| `cmd`, `command`, `meta` | ⌘ | Win |
+| `ctrl`, `control` | ⌃ | Ctrl |
+| `alt`, `option` | ⌥ | Alt |
+| `up`/`arrowup`, `down`/`arrowdown`, `left`/`arrowleft`, `right`/`arrowright` | arrow icon | same |
+| `enter`, `return` | ↩ | Enter |
+| `esc`, `escape` | ⎋ | Esc |
+| `space` | ␣ | Space |
+| `tab` | ⇥ | Tab |
+| `backspace` / `delete` | ⌫ / ⌦ | Bksp / Del |
+| `capslock` | ⇪ | Caps |
+| `pageup` / `pagedown` | ⇞ / ⇟ | PgUp / PgDn |
+| `home` / `end` | ↖ / ↘ | Home / End |
+| any other string (`k`, `/`, `[`, `f5`…) | raw text | raw text |
+
+Important: `win` means the LITERAL Windows key (always the logo icon). For the
+platform modifier (⌘ on macOS viewers), use `cmd`/`meta`.
+
+## Visitor features (worth mentioning when sharing a page)
+
+- Test mode: pressing the real keys highlights the matching key caps and combos
+- Groups expand/collapse via chevron or group name
+- Two-column grid on desktop AND mobile; list/grid toggle
+- Light/dark theme; `?t=`/`?d=` custom title/description
+
+## Worked example
+
+```js
+const blocks = [
+  {"keys":"win+p","action":"投影模式"},
+  {"keys":"win+k","action":"链接投屏"},
+  {"keys":"/","action":"现场搜索经文","group":"信义PPT"},
+  {"keys":"shift+r","action":"刷新PPT","description":"PPT 内拉取最新信息","group":"信义PPT"},
+  {"type":"note","variant":"tip","content":"shift+g 展开/收起全部","group":"信义PPT"},
+]
+const url = "https://shortcut.y-m.dev/?s=" + encodeURIComponent(JSON.stringify(blocks))
+  + "&t=" + encodeURIComponent("信义PPT指南")
+// → https://shortcut.y-m.dev/?s=%5B%7B%22keys%22%3A%22win%2Bp%22...&t=...
+```
+
+## Updating an existing page
+
+Given a URL containing `?s=`, `decodeURIComponent` + `JSON.parse` the param,
+edit the blocks array, re-encode, and rebuild the URL. To rename a group,
+change `group` on every block that has it.
+
+## Source
+
+Spec is mirrored in the repo:
+https://github.com/yymmm9/kbd-docs/blob/main/AGENTS.md
