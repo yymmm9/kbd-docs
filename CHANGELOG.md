@@ -8,6 +8,7 @@
 - **Editing mode**: `?edit=1` shows the form and controls; visitors see only the content
 - **Windows key SVG icon** with "win" label for win/windows/super keys
 - **Import guide**: expandable `<details>` panel with text/JSON format examples & tips for AI
+- **`AGENTS.md` 规范文档**: 完整记录 URL schema、block 类型、键名词汇表，供 AI agent 直接生成分享链接；"Copy for AI" 按钮文本同步升级为完整规范
 - **Group insertion-order**: groups display in the order their first block was added (instead of alphabetical)
 - **Group 展开/收起**: 每组头部新增 chevron 按钮折叠整块；浏览模式点组名/数量徽章也可切换
 - **方向键 SVG icon**: `up/down/left/right` 与 `arrow*` 一律渲染为箭头 icon（`symbolKey` 复用 win logo 机制），文本导出仍用 ↑↓←→

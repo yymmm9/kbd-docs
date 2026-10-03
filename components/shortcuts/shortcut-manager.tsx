@@ -1596,26 +1596,38 @@ function BlockMenu({
   )
 }
 
-const GUIDE_TEXT = `Format 1 — Text (keys | action | description):
-─────────────────────────────────────────
+const GUIDE_TEXT = `kbd-docs — build a keyboard-shortcut cheatsheet page.
+Everything lives in the URL; there is no backend.
+
+== Share a page: build a URL ==
+https://shortcut.y-m.dev/?s=<encodeURIComponent(JSON blocks)>&t=<title>&d=<description>
+- s = JSON array of blocks (required), t/d = page title/description
+- omit edit=1 for read-only share pages
+
+== Blocks ==
+shortcut (default type): {"type":"shortcut","keys":"win+shift+arrowleft","action":"...","description":"...","group":"..."}
+  keys: string "a+b+c" (preferred) or [{"listenKey":"cmd","label":"cmd","display":"cmd"}]
+  alts: alternative combos, e.g. "alts":[["ctrl","k"]]
+section (divider): {"type":"section","title":"...","description":"..."}
+note (callout):    {"type":"note","variant":"info|warning|tip|danger","content":"..."}
+code:              {"type":"code","language":"javascript","code":"..."}
+group: blocks sharing a group name render under one collapsible header (insertion order)
+
+== Key vocabulary (listenKey, case-insensitive, unknown keys render as-is) ==
+win/windows/super -> Windows logo icon (the LITERAL Windows key)
+cmd/command/meta  -> platform modifier: ⌘ on mac, Win elsewhere
+ctrl/control -> ⌃/Ctrl   alt/option -> ⌥/Alt   shift -> ⇧ icon
+up/down/left/right or arrow* -> arrow icons
+enter/return ↩  esc/escape ⎋  space ␣  tab ⇥  backspace ⌫  delete ⌦
+capslock ⇪  pageup ⇞  pagedown ⇟  home ↖  end ↘
+any other string (k, /, [, f5...) renders as raw text
+
+== Paste-import format (keys | action | description, one per line) ==
 cmd+K ctrl+K | Toggle palette | Open the command palette
-ctrl+S cmd+S | Save | Save changes
-win+shift+arrowLeft | Move window left | Snap to left half
+win+shift+arrowleft | Move window left | Snap to left half
+space-separated tokens = alternative combos; a bare token after a combo = single-key alt
 
-Format 2 — JSON (array of blocks):
-──────────────────────────────────
-[
-  {"keys":["cmd","k"],"action":"Toggle palette","description":"Open the command palette","group":"General"},
-  {"type":"section","title":"Getting Started"},
-  {"type":"note","variant":"tip","content":"You can also use ctrl+K"},
-  {"type":"code","language":"javascript","code":"console.log(42)","group":"Dev"}
-]
-
-Tips:
-- Separate alternative combos with space: cmd+K ctrl+K
-- Use + between modifier and key within a combo
-- Add optional group field to organize blocks
-- Old shortcuts without type automatically become Shortcut blocks`
+Full spec: https://github.com/yymmm9/kbd-docs/blob/main/AGENTS.md`
 
 function CopyGuideButton() {
   const [copied, setCopied] = useState(false)
