@@ -92,12 +92,18 @@ function Kbd({
               ]
             )}
           >
-            {key.symbolKey === "win" ? (
+            {key.symbolKey === "win" || key.symbolKey === "shift" ? (
               <span className="flex flex-col items-center gap-[1px]">
-                <svg viewBox="0 0 16 16" fill="currentColor" className="size-[14px] sm:size-[18px]">
-                  <path d="M0 2.792L6.528 1.944V8H0zM7.232 1.944L16 .84V8H7.232zM16 8.16l-.001 7.158L7.232 14.214V8.16zM6.528 14.214L0 13.368V8.16h6.528z" />
-                </svg>
-                <span className="text-[10px] font-medium opacity-50 leading-none">win</span>
+                {key.symbolKey === "win" ? (
+                  <svg viewBox="0 0 16 16" fill="currentColor" className="size-[14px] sm:size-[18px]">
+                    <path d="M0 2.792L6.528 1.944V8H0zM7.232 1.944L16 .84V8H7.232zM16 8.16l-.001 7.158L7.232 14.214V8.16zM6.528 14.214L0 13.368V8.16h6.528z" />
+                  </svg>
+                ) : (
+                  <svg viewBox="0 0 24 24" fill="currentColor" className="size-[14px] sm:size-[18px]">
+                    <path d="M12 3l7 7h-4v8h-6v-8H5l7-7z" />
+                  </svg>
+                )}
+                <span className="text-[10px] font-medium opacity-50 leading-none">{key.symbolKey}</span>
               </span>
             ) : key.symbolKey && key.symbolKey in ARROW_ROTATION ? (
               <svg

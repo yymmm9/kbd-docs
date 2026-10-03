@@ -71,7 +71,6 @@ const KEY_LABELS: Record<string, { mac: string; default: string }> = {
   meta: { mac: "⌘", default: "Win" },
   cmd: { mac: "⌘", default: "Win" },
   command: { mac: "⌘", default: "Win" },
-  shift: { mac: "⇧", default: "Shift" },
   capslock: { mac: "⇪", default: "Caps" },
   enter: { mac: "↩", default: "Enter" },
   return: { mac: "↩", default: "Enter" },
@@ -107,6 +106,11 @@ export function normalizeKeys(keys: KeyItem[], isMac = true): KeyItem[] {
     // Windows logo. Platform modifier (⌘ on mac / Win elsewhere) is `meta`/`cmd`.
     if (WIN_KEYS.has(lower)) {
       return { ...k, label: "Win", display: "Win", symbolKey: "win" }
+    }
+    // shift renders as ⇧ icon + "shift" caption (symbolKey); glyph kept for export
+    if (lower === "shift") {
+      const label = isMac ? "⇧" : "Shift"
+      return { ...k, label, display: label, symbolKey: "shift" }
     }
     // Arrow keys render as SVG icons (symbolKey); glyph kept for text export
     const arrow = ARROW_KEYS[lower]

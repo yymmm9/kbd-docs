@@ -11,6 +11,7 @@
 - **Group insertion-order**: groups display in the order their first block was added (instead of alphabetical)
 - **Group 展开/收起**: 每组头部新增 chevron 按钮折叠整块；浏览模式点组名/数量徽章也可切换
 - **方向键 SVG icon**: `up/down/left/right` 与 `arrow*` 一律渲染为箭头 icon（`symbolKey` 复用 win logo 机制），文本导出仍用 ↑↓←→
+- **Shift 键 icon**: ⇧ 图标 + "shift" 小字caption，与 win 键同版式；文本导出仍用 ⇧/Shift
 - **Search**: filter shortcuts/sections/notes/code blocks by title or description
 - **BlockMenu**: edit/delete moved to single `⋮` dropdown, gated by `editing` mode prop
 - `normalizeBlocks()` utility for backward-compatible URL loading
